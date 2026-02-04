@@ -172,7 +172,46 @@ class ElectronMcpServer {
       }
     );
 
+    this.registerTool(
+      "execute_javascript",
+      "Execute JavaScript in window",
+      {
+        code: z.string().describe("JavaScript code to execute"),
+        win_id: z.number().optional().describe("Window ID (defaults to 1)"),
+      },
+      async ({ code, win_id }) => {
+        try {
+          const actualWinId = win_id || 1;
+          const win = BrowserWindow.fromId(actualWinId);
+          if (!win) throw new Error(`Window ${actualWinId} not found`);
+          const result = await win.webContents.executeJavaScript(code);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        } catch (error) {
+          return {
+            content: [{ type: "text", text: `Error: ${error.message}` }],
+            isError: true,
+          };
+        }
+      }
+    );
 
+    this.registerTool(
+      "ask_question",
+      "Ask a question to Gemini LLM",
+      {
+        question: z.string().describe("The question to ask"),
+      },
+      async ({ question }) => {
+        return {
+          content: [{
+            type: "text",
+            text: `Question received: ${question}`
+          }]
+        };
+      }
+    );
 
     // Snapshot tool - captures page with screenshot and element references
     this.registerTool(
