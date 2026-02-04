@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Client script to call page_snapshot tool and save results locally
+ * Client script to call webpage_screenshot_and_to_clipboard tool and save results locally
  */
 const http = require('http');
 const fs = require('fs');
@@ -66,13 +66,13 @@ async function callPageSnapshot() {
 
   console.log('Session ID:', sseRes.sessionId);
 
-  // Step 2: Call page_snapshot tool
+  // Step 2: Call webpage_screenshot_and_to_clipboard tool
   const requestBody = {
     jsonrpc: '2.0',
     id: 1,
     method: 'tools/call',
     params: {
-      name: 'page_snapshot',
+      name: 'webpage_screenshot_and_to_clipboard',
       arguments: {
         win_id: 1,
         fullPage: true,
@@ -82,7 +82,7 @@ async function callPageSnapshot() {
     }
   };
 
-  console.log('Calling page_snapshot tool...');
+  console.log('Calling webpage_screenshot_and_to_clipboard tool...');
   
   const result = await makeRequest({
     host: HOST,

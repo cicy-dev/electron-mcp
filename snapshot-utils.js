@@ -1,7 +1,7 @@
 // snapshot-utils.js
 // Snapshot utilities for Electron MCP server
 // Provides page snapshot capture with screenshots and element references
-
+const { clipboard,nativeImage} = require('electron');
 const SNAPSHOT_PRESETS = {
   shorten: { domDepth: 64, maxChildren: 240, maxInteractive: 800 },
   all: {
@@ -504,67 +504,183 @@ function buildRefMapFromSnapshot(snapshot) {
   return refMap;
 }
 
+async function collectPageMetadata(webContents, snapshot, captureStartTime) {
+  const captureEndTime = Date.now();
+  const captureDuration = captureEndTime - captureStartTime;
+  
+  const metadata = {
+    timestamp: new Date().toISOString(),
+    captureDuration: captureDuration,
+    captureStartTime: new Date(captureStartTime).toISOString(),
+    totalElements: snapshot.totalNodes || 0,
+    interactiveElements: snapshot.aria?.interactive?.length || 0,
+    landmarks: snapshot.aria?.landmarks?.length || 0,
+    forms: snapshot.forms?.length || 0,
+    links: snapshot.links?.length || 0,
+    images: snapshot.images?.length || 0,
+    headings: snapshot.headings?.length || 0,
+    viewport: snapshot.viewport,
+    userAgent: await webContents.executeJavaScript('navigator.userAgent'),
+    pageStats: {
+      scrollWidth: await webContents.executeJavaScript('document.documentElement.scrollWidth'),
+      scrollHeight: await webContents.executeJavaScript('document.documentElement.scrollHeight'),
+      domContentLoaded: await webContents.executeJavaScript('window.performance?.timing?.domContentLoadedEventEnd || null'),
+      loadComplete: await webContents.executeJavaScript('window.performance?.timing?.loadEventEnd || null'),
+    }
+  };
+  
+  return metadata;
+}
+
 async function captureSnapshot(webContents, options = {}) {
   const {
-    fullPage = true,
-    detailLevel = 'shorten',
-    includeScreenshot = true,
     win_id = 1,
   } = options;
 
-  resetAccessibleRefMap();
-  currentSnapshotPrefix = `s${win_id}`;
+  const image = await webContents.capturePage();
+  let size = image.getSize(); // 逻辑尺寸
 
-  const limits = getSnapshotLimits(detailLevel);
-  const snapshot = await captureDomSnapshot(webContents, fullPage, limits);
-  
-  if (!snapshot) {
-    throw new Error('Failed to capture DOM snapshot');
+// 检测是否为 macOS
+  if (process.platform === 'darwin') {
+    // 将图片缩小到逻辑尺寸（即原始物理像素的一半）
+    // resize 会返回一个新的 NativeImage 对象
+    const resizedImage = image.resize({
+      width: size.width,
+      height: size.height,
+      quality: 'better' // 可选: 'good', 'better', 'best'
+    });
+
+    // 更新数据
+    var finalImage = resizedImage;
+  } else {
+    var finalImage = image;
   }
+  const pngBuffer = finalImage.toPNG();
+  // 2. 使用 Buffer 重新创建 NativeImage (确保数据完整)
+  const imageToPaste = nativeImage.createFromBuffer(pngBuffer);
 
-  // Build reference map
-  const refMap = buildRefMapFromSnapshot(snapshot);
-  snapshot.refMap = refMap;
-  snapshot.snapshotId = currentSnapshotPrefix;
+// 3. 写入剪贴板
+  clipboard.writeImage(imageToPaste);
 
-  // Capture screenshot if requested
-  let screenshotData = null;
-  if (includeScreenshot) {
-    try {
-      const image = await webContents.capturePage();
-      screenshotData = image.toPNG().toString('base64');
-    } catch (err) {
-      console.warn('[snapshot] Screenshot capture failed:', err);
-    }
-  }
-
+  const screenshotData = finalImage.toPNG().toString('base64');
   return {
-    snapshot,
-    screenshot: screenshotData,
+    content: [
+      {
+        type: "text",
+        text: `Size: ${size.width}x${size.height} (macOS auto-scaled)`
+      },
+      {
+        type: "text",
+        text: `Image has write to clipboard`
+      },
+      {
+        type: "image",
+        data: screenshotData,
+        mimeType: "image/png"
+      }
+    ]
   };
 }
 
-function buildSnapshotText(snapshot, status = '', details = []) {
+function formatSnapshotAsJSON(snapshot, screenshotDataUri, metadata) {
+  const jsonOutput = {
+    snapshot: {
+      metadata: metadata ? {
+        timestamp: metadata.timestamp,
+        captureDuration: metadata.captureDuration,
+        captureStartTime: metadata.captureStartTime,
+        totalElements: metadata.totalElements,
+        interactiveElements: metadata.interactiveElements,
+        landmarks: metadata.landmarks,
+        forms: metadata.forms,
+        links: metadata.links,
+        images: metadata.images,
+        headings: metadata.headings,
+        viewport: metadata.viewport,
+        userAgent: metadata.userAgent,
+        pageStats: metadata.pageStats,
+        screenshotError: metadata.screenshotError || undefined,
+      } : undefined,
+      content: {
+        url: snapshot?.url || '',
+        title: snapshot?.title || '',
+        description: snapshot?.description || '',
+        canonical: snapshot?.canonical || '',
+      },
+      structure: {
+        aria: snapshot?.aria || {},
+        links: snapshot?.links || [],
+        images: snapshot?.images || [],
+        forms: snapshot?.forms || [],
+        headings: snapshot?.headings || [],
+      },
+      references: snapshot?.refMap || {},
+      screenshot: screenshotDataUri || null,
+      snapshotId: snapshot?.snapshotId || '',
+    },
+  };
+
+  // Remove undefined metadata if not included
+  if (!metadata) {
+    delete jsonOutput.snapshot.metadata;
+  }
+
+  return JSON.stringify(jsonOutput, null, 2);
+}
+
+function buildSnapshotText(snapshot, status = '', details = [], outputFormat = 'yaml', screenshotDataUri = null, metadata = null) {
   const normalizedDetails = (details || []).filter(Boolean);
   const detailLines = normalizedDetails.map((line) => (line.startsWith('- ') ? line : `- ${line}`));
   const detailBlock = detailLines.length ? `${detailLines.join('\n')}\n` : '';
 
-  const yaml = formatSnapshotAsYAML(snapshot);
   const pageUrl = snapshot?.url || 'unknown';
   const pageTitle = snapshot?.title || 'Untitled';
 
   const statusLine = status ? `${status}\n` : '';
 
-  return (
-    `${statusLine}` +
-    `${detailBlock}` +
-    `- Page URL: ${pageUrl}\n` +
-    `- Page Title: ${pageTitle}\n` +
-    `- Page Snapshot\n` +
-    '```yaml\n' +
-    `${yaml}\n` +
-    '```'
-  );
+  if (outputFormat === 'json') {
+    const jsonContent = formatSnapshotAsJSON(snapshot, screenshotDataUri, metadata);
+    return (
+      `${statusLine}` +
+      `${detailBlock}` +
+      `- Page URL: ${pageUrl}\n` +
+      `- Page Title: ${pageTitle}\n` +
+      `- Page Snapshot (JSON format)\n` +
+      '```json\n' +
+      `${jsonContent}\n` +
+      '```'
+    );
+  } else if (outputFormat === 'both') {
+    const yaml = formatSnapshotAsYAML(snapshot);
+    const jsonContent = formatSnapshotAsJSON(snapshot, screenshotDataUri, metadata);
+    return (
+      `${statusLine}` +
+      `${detailBlock}` +
+      `- Page URL: ${pageUrl}\n` +
+      `- Page Title: ${pageTitle}\n` +
+      `- Page Snapshot (YAML format)\n` +
+      '```yaml\n' +
+      `${yaml}\n` +
+      '```\n\n' +
+      `- Page Snapshot (JSON format)\n` +
+      '```json\n' +
+      `${jsonContent}\n` +
+      '```'
+    );
+  } else {
+    // Default to YAML format
+    const yaml = formatSnapshotAsYAML(snapshot);
+    return (
+      `${statusLine}` +
+      `${detailBlock}` +
+      `- Page URL: ${pageUrl}\n` +
+      `- Page Title: ${pageTitle}\n` +
+      `- Page Snapshot\n` +
+      '```yaml\n' +
+      `${yaml}\n` +
+      '```'
+    );
+  }
 }
 
 module.exports = {
