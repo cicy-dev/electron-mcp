@@ -11,6 +11,9 @@ describe('MCP HTTP API - 完整测试套件', () => {
   let sseResponses = {}; // 存储SSE响应
   let requestId = 1; // 请求ID计数器
   beforeAll(async () => {
+    // 设置测试环境变量
+    process.env.NODE_ENV = 'test';
+    
     // 清理端口
     require('child_process').execSync(`lsof -ti:${PORT} | xargs kill -9 2>/dev/null || true`);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -18,7 +21,11 @@ describe('MCP HTTP API - 完整测试套件', () => {
     // 启动MCP服务器
     electronProcess = spawn('node', ['start-mcp.js', `--port=${PORT}`], {
       stdio: 'pipe',
-      detached: false
+      detached: false,
+    env: {
+    ...process.env, // 继承当前进程的环境变量
+    TEST: 'TRUE'      // 添加自定义环境变量
+  }
     });
     
     // 等待服务器启动
@@ -158,8 +165,6 @@ describe('MCP HTTP API - 完整测试套件', () => {
     test('应该列出所有可用工具', async () => {
       const response = await sendRequest('tools/list');
       
-      // Debug: log full response
-      process.stderr.write('tools/list response: ' + JSON.stringify(response, null, 2) + '\n');
       
       expect(response.result).toBeDefined();
       
@@ -236,11 +241,6 @@ describe('MCP HTTP API - 完整测试套件', () => {
       expect(imageContent.mimeType).toBe('image/png');
       expect(typeof imageContent.data).toBe('string');
 
-      // 3. 校验剪贴板调用 (核心逻辑验证)
-      // 注意：在真实代码中，你需要确保工具逻辑里确实执行了 clipboard.writeImage
-      // expect(clipboard.writeImage).toHaveBeenCalled();
-
-      console.log('测试通过，响应内容:', JSON.stringify(response, null, 2));
     }, 10000); // 增加超时时间到10秒
 
   });
@@ -279,7 +279,7 @@ describe('MCP HTTP API - 完整测试套件', () => {
           code: 'return webContents.getURL()'
         }
       });
-
+        console.log(response.result)
       expect(response.result.isError).toBeUndefined();
       expect(response.result.content[0].type).toBe('text');
       expect(typeof response.result.content[0].text).toBe('string');

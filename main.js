@@ -8,6 +8,15 @@ const { captureSnapshot, buildSnapshotText } = require('./snapshot-utils');
 const PORT = parseInt(process.env.PORT || process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] || '8101');
 const transports = {};
 
+const on_finish_load = (win)=>{
+
+     if (!win.webContents.debugger.isAttached()) {
+        try {
+            win.webContents.debugger.attach('1.3');
+            win.webContents.debugger.sendCommand('Network.enable');
+        } catch (err) { }
+    }
+}
 class ElectronMcpServer {
   constructor() {
     this.server = new McpServer({
@@ -44,6 +53,10 @@ class ElectronMcpServer {
             },
             ...options
           });
+            win.webContents.on('did-finish-load', () => {
+               on_finish_load(win)
+            });
+
           await win.loadURL(url);
           const id = win.id;
           return {
@@ -231,7 +244,7 @@ class ElectronMcpServer {
     );
     this.registerTool(
         "invoke_window_webContents",
-        "调用 Electron window.webContents 的方法或属性。现已支持 debugger 指令,注意：代码应以 'return' 返回结果，支持 await。",
+        "调用 Electron window.webContents 的方法或属性 注意：代码应以 'return' 返回结果，支持 await。",
         {
           win_id: z.number().optional().default(1).describe("窗口 ID"),
           code: z.string().describe("要执行的 JS 代码。例如: 'return webContents.getURL()' 或 'return await webContents.capturePage()'")
@@ -242,10 +255,6 @@ class ElectronMcpServer {
             if (!win) throw new Error(`未找到 ID 为 ${win_id} 的窗口`);
             const webContents = win.webContents;
 
-            // 自动 attach 调试器（如果尚未 attach）
-            if (!webContents.debugger.isAttached()) {
-              webContents.debugger.attach('1.3');
-            }
 
             // 使用 AsyncFunction 来支持代码中的 await
             const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
@@ -290,6 +299,65 @@ class ElectronMcpServer {
           }
         }
     );
+
+      this.registerTool(
+        "invoke_window_webContents_debugger",
+        "调用 Electron window.webContents.debugger CDP 的方法或属性 注意：代码应以 'return' 返回结果，支持 await。",
+        {
+          win_id: z.number().optional().default(1).describe("窗口 ID"),
+          code: z.string().describe("要执行的 debugger CDP 代码。例如: 'return debugger.sendCommand()' 或 'return await debugger.sendCommand()'")
+        },
+        async ({ win_id, code }) => {
+          try {
+            const win = BrowserWindow.fromId(win_id);
+            if (!win) throw new Error(`未找到 ID 为 ${win_id} 的窗口`);
+            const webContents = win.webContents;
+
+
+            // 使用 AsyncFunction 来支持代码中的 await
+            const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+
+            // 创建执行环境，将 webContents 作为参数传入
+            const execute = new AsyncFunction("webContents", "win", "debugger",code);
+
+            // 执行并获取返回结果
+            let result = await execute(webContents, win);
+
+            // 序列化处理：处理 NativeImage, Buffer 或循环引用
+            let outputText;
+            if (result && typeof result === 'object') {
+              if (result.constructor.name === 'NativeImage') {
+                // 如果返回的是图片，自动转为 base64 和尺寸信息
+                const size = result.getSize();
+                const base64 = result.toPNG().toString('base64');
+                return {
+                  content: [
+                    { type: "text", text: `Captured Image: ${size.width}x${size.height}` },
+                    { type: "image", data: base64, mimeType: "image/png" }
+                  ]
+                };
+              }
+              // 普通对象尝试 JSON 序列化
+              outputText = JSON.stringify(result, (key, value) =>
+                  typeof value === 'bigint' ? value.toString() : value, 2
+              );
+            } else {
+              outputText = String(result);
+            }
+
+            return {
+              content: [{ type: "text", text: outputText }],
+            };
+
+          } catch (error) {
+            return {
+              content: [{ type: "text", text: `执行失败: ${error.message}\n堆栈: ${error.stack}` }],
+              isError: true,
+            };
+          }
+        }
+    );
+
 
 
     // Snapshot tool - captures page with screenshot and element references
@@ -424,6 +492,22 @@ app.whenReady().then(async () => {
     console.log(`MCP HTTP Server running on http://localhost:${PORT}`);
     console.log(`SSE endpoint: http://localhost:${PORT}/mcp`);
   });
+    
+    if(process.env.TEST){
+        const win = new BrowserWindow({
+            width: 1000,
+            height: 800,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              partition: 'persist:mcp'
+            },
+          })
+        win.loadURL("http://www.google.com");
+        win.webContents.on('did-finish-load', () => {
+           on_finish_load(win)
+        });
+    }
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
