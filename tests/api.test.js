@@ -1,6 +1,9 @@
 const request = require('supertest');
 const { spawn } = require('child_process');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 describe('MCP HTTP API - 完整测试套件', () => {
   const PORT = 8102;
@@ -10,6 +13,7 @@ describe('MCP HTTP API - 完整测试套件', () => {
   let sseReq;
   let sseResponses = {}; // 存储SSE响应
   let requestId = 1; // 请求ID计数器
+  let authToken; // 认证令牌
   beforeAll(async () => {
     // 设置测试环境变量
     process.env.NODE_ENV = 'test';
@@ -50,6 +54,12 @@ describe('MCP HTTP API - 完整测试套件', () => {
     // 等待Electron初始化
     await new Promise(resolve => setTimeout(resolve, 3000));
     
+    // 读取认证令牌
+    const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
+    if (fs.existsSync(tokenPath)) {
+      authToken = fs.readFileSync(tokenPath, 'utf8').trim();
+    }
+    
     // 建立SSE连接
     await new Promise((resolve, reject) => {
       const options = {
@@ -57,7 +67,10 @@ describe('MCP HTTP API - 完整测试套件', () => {
         port: PORT,
         path: '/mcp',
         method: 'GET',
-        headers: { 'Accept': 'text/event-stream' }
+        headers: { 
+          'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${authToken}`
+        }
       };
 
       sseReq = http.request(options, (res) => {
@@ -137,6 +150,7 @@ describe('MCP HTTP API - 完整测试套件', () => {
       .post(`/mcp?sessionId=${sessionId}`)
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${authToken}`)
       .send({ jsonrpc: '2.0', id, method, params });
 
     expect(response.status).toBe(202);
