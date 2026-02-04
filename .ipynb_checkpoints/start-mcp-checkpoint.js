@@ -31,17 +31,8 @@ async function startServer() {
     console.log(`Starting MCP Server on port ${PORT}...`);
     const electronProcess = spawn('npx', ['electron', '.', `--port=${PORT}`], {
         cwd: __dirname,
-        stdio: process.env.NODE_ENV === 'test' ? 'pipe' : 'inherit'
+        stdio: 'inherit'
     });
-
-    if (process.env.NODE_ENV === 'test') {
-        electronProcess.stdout.on('data', (data) => {
-            process.stdout.write(data);
-        });
-        electronProcess.stderr.on('data', (data) => {
-            process.stderr.write(data);
-        });
-    }
 
     process.on('SIGINT', () => electronProcess.kill('SIGINT'));
 }

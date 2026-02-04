@@ -11,9 +11,6 @@ describe('MCP HTTP API - 完整测试套件', () => {
   let sseResponses = {}; // 存储SSE响应
   let requestId = 1; // 请求ID计数器
   beforeAll(async () => {
-    // 设置测试环境变量
-    process.env.NODE_ENV = 'test';
-    
     // 清理端口
     require('child_process').execSync(`lsof -ti:${PORT} | xargs kill -9 2>/dev/null || true`);
     await new Promise(resolve => setTimeout(resolve, 500));
