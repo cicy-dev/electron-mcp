@@ -4,9 +4,38 @@ const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
 const { z } = require("zod");
 const { captureSnapshot, buildSnapshotText } = require('./snapshot-utils');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const os = require('os');
 
 const PORT = parseInt(process.env.PORT || process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] || '8101');
 const transports = {};
+
+// 令牌管理
+function getOrGenerateToken() {
+  const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
+  
+  try {
+    // 检查是否已存在令牌
+    if (fs.existsSync(tokenPath)) {
+      const token = fs.readFileSync(tokenPath, 'utf8').trim();
+      if (token) {
+        console.log('[MCP] Using existing token from', tokenPath);
+        return token;
+      }
+    }
+    
+    // 生成新令牌
+    const newToken = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(tokenPath, newToken);
+    console.log('[MCP] Generated new token and saved to', tokenPath);
+    return newToken;
+  } catch (error) {
+    console.error('[MCP] Token management error:', error);
+    return crypto.randomBytes(32).toString('hex'); // fallback
+  }
+}
 
 const on_finish_load = (win)=>{
 
@@ -25,6 +54,11 @@ class ElectronMcpServer {
       description: "Electron MCP Server with browser automation tools",
     });
 
+    // 设置认证令牌
+    this.authToken = process.env.MCP_AUTH_TOKEN || getOrGenerateToken();
+    console.log('[MCP] Auth token enabled');
+    console.log('[MCP] Token saved to ~/electron-mcp-token.txt');
+
     this.setupTools();
   }
 
@@ -32,11 +66,20 @@ class ElectronMcpServer {
     this.server.registerTool(name, { title: name, description, inputSchema: schema }, handler);
   }
 
+  // 验证认证令牌
+  validateAuth(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    
+    const token = authHeader.replace('Bearer ', '');
+    return token === this.authToken;
+  }
+
   setupTools() {
     // Window management tools
     this.registerTool(
       "open_window",
-      "Open a new browser window",
+      "打开新的浏览器窗口。用于创建新窗口访问网页、测试多窗口应用或隔离不同的浏览会话。支持自定义窗口大小和位置。",
       {
         url: z.string().describe("URL to open"),
         options: z.object({}).optional().describe("Window options"),
@@ -71,20 +114,21 @@ class ElectronMcpServer {
       }
     );
     this.registerTool("get_windows",
-        `获取当前所有 Electron 窗口的实时状态列表。
+        `获取当前所有 Electron 窗口的实时状态列表。返回每个窗口的详细信息，是窗口管理和自动化操作的基础工具。
   
   返回信息包括：
-  - id: 窗口的唯一标识符（调用其他 invoke_window 工具时必需）。
-  - title/url: 窗口当前的标题和网址。
-  - debuggerIsAttached:wc.debugger.isAttached()
-  - isActive/isVisible: 判断窗口是否被用户聚焦或隐藏。
-  - bounds: 物理坐标 (x, y, width, height)，用于窗口布局分析。
-  - 加载状态: 包括 isLoading, isDomReady, isCrashed 等。
+  - id: 窗口的唯一标识符（调用其他 invoke_window 工具时必需）
+  - title/url: 窗口当前的标题和网址
+  - debuggerIsAttached: 调试器是否已附加
+  - isActive/isVisible: 窗口焦点和可见性状态
+  - bounds: 窗口位置和大小 (x, y, width, height)
+  - 加载状态: isLoading, isDomReady, isCrashed 等
 
-  使用场景：
-  1. 在执行截图或操作前，先通过此工具定位目标窗口的 id。
-  2. 监控页面是否加载完成或崩溃。
-  3. 获取窗口位置以进行精确的 UI 交互或窗口排列。`, {}, async () => {
+  主要用途：
+  - 窗口管理：获取窗口ID进行后续操作
+  - 状态监控：检查窗口是否正常运行
+  - 自动化测试：验证窗口状态和属性
+  - 调试辅助：查看所有窗口的实时信息`, {}, async () => {
       try {
         const windows = BrowserWindow.getAllWindows().map(w => {
           const wc = w.webContents;
@@ -129,7 +173,7 @@ class ElectronMcpServer {
 
     this.registerTool(
       "close_window",
-      "Close a window",
+      "关闭指定的窗口。用于清理不需要的窗口、释放资源或结束特定的浏览会话。",
       {
         win_id: z.number().describe("Window ID"),
       },
@@ -154,7 +198,7 @@ class ElectronMcpServer {
 
     this.registerTool(
       "load_url",
-      "Load URL in window",
+      "在指定窗口中加载新的URL。用于导航到不同网页、刷新页面或加载本地文件。支持所有标准URL格式。",
       {
         url: z.string().describe("URL to load"),
         win_id: z.number().optional().describe("Window ID (defaults to 1)"),
@@ -179,7 +223,7 @@ class ElectronMcpServer {
       
     this.registerTool(
       "get_title",
-      "Get window title",
+      "获取指定窗口的标题。用于确认页面加载状态、验证导航结果或获取页面信息。",
       {
         win_id: z.number().describe("Window ID"),
       },
@@ -202,7 +246,16 @@ class ElectronMcpServer {
 
     this.registerTool(
         "invoke_window",
-        "调用 Electron BrowserWindow 实例的方法或属性（如控制窗口大小、位置、置顶等）。注意：代码应以 'return' 返回结果，支持 await。",
+        `直接调用 Electron BrowserWindow 实例的方法和属性。这是窗口控制的核心工具，支持所有窗口操作。
+
+主要用途：
+- 窗口控制：移动、调整大小、最小化、最大化
+- 状态管理：设置置顶、焦点、可见性
+- 属性获取：获取窗口位置、大小、状态
+- 高级操作：设置透明度、边框、图标等
+
+代码执行环境：可访问 win (BrowserWindow实例) 和 webContents 对象
+支持 async/await 语法，代码需以 'return' 返回结果`,
         {
           win_id: z.number().optional().default(1).describe("窗口 ID"),
           code: z.string().describe("要执行的 JS 代码。例如: 'return win.getBounds()' 或 'win.maximize()'")
@@ -244,7 +297,18 @@ class ElectronMcpServer {
     );
     this.registerTool(
         "invoke_window_webContents",
-        "调用 Electron window.webContents 的方法或属性 注意：代码应以 'return' 返回结果，支持 await。",
+        `调用 Electron webContents 的方法和属性。这是网页内容操作的核心工具，用于与页面进行交互。
+
+主要用途：
+- 页面操作：截图、打印、缩放、导航
+- 内容获取：获取URL、标题、源码
+- 脚本执行：在页面中执行JavaScript代码
+- 开发调试：获取控制台信息、性能数据
+- 媒体控制：音频/视频播放控制
+
+代码执行环境：可访问 webContents, win 对象
+支持 async/await 语法，代码需以 'return' 返回结果
+自动处理 NativeImage 返回为 MCP 图像格式`,
         {
           win_id: z.number().optional().default(1).describe("窗口 ID"),
           code: z.string().describe("要执行的 JS 代码。例如: 'return webContents.getURL()' 或 'return await webContents.capturePage()'")
@@ -301,11 +365,26 @@ class ElectronMcpServer {
     );
 
       this.registerTool(
-        "invoke_window_webContents_debugger",
-        "调用 Electron window.webContents.debugger CDP 的方法或属性 注意：代码应以 'return' 返回结果，支持 await。",
+        "invoke_window_webContents_debugger_cdp",
+        `使用 Chrome DevTools Protocol (CDP) 进行高级调试和页面控制。这是最强大的页面操作工具。
+
+主要用途：
+- 高级调试：断点、变量检查、性能分析
+- DOM操作：元素查找、属性修改、事件模拟
+- 网络监控：请求拦截、响应修改、性能监控
+- 脚本注入：在页面任意时机执行代码
+- 安全测试：绕过页面限制进行深度测试
+
+使用方法：
+1. 先调用 debuggerObj.attach('1.3') 附加调试器
+2. 使用 debuggerObj.sendCommand(method, params) 发送CDP命令
+3. 完成后调用 debuggerObj.detach() 分离调试器
+
+代码执行环境：可访问 debuggerObj, webContents, win 对象
+支持 async/await 语法，代码需以 'return' 返回结果`,
         {
           win_id: z.number().optional().default(1).describe("窗口 ID"),
-          code: z.string().describe("要执行的 debugger CDP 代码。例如: 'return debugger.sendCommand()' 或 'return await debugger.sendCommand()'")
+          code: z.string().describe("要执行的 debugger CDP 代码。例如: 'return debuggerObj.sendCommand()' 或 'return await debuggerObj.sendCommand()' 注意：debugger 对象通过 debuggerObj 变量访问")
         },
         async ({ win_id, code }) => {
           try {
@@ -317,11 +396,11 @@ class ElectronMcpServer {
             // 使用 AsyncFunction 来支持代码中的 await
             const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
-            // 创建执行环境，将 webContents 作为参数传入
-            const execute = new AsyncFunction("webContents", "win", "debugger",code);
+            // 创建执行环境，将 webContents, win, debugger 作为参数传入
+            const execute = new AsyncFunction("webContents", "win", "debuggerObj", code);
 
             // 执行并获取返回结果
-            let result = await execute(webContents, win);
+            let result = await execute(webContents, win, webContents.debugger);
 
             // 序列化处理：处理 NativeImage, Buffer 或循环引用
             let outputText;
@@ -363,7 +442,19 @@ class ElectronMcpServer {
     // Snapshot tool - captures page with screenshot and element references
     this.registerTool(
       "webpage_screenshot_and_to_clipboard",
-      "获取页面截屏并复制图像到剪切板",
+      `捕获指定窗口的页面截图并自动复制到系统剪贴板。这是快速获取页面视觉内容的便捷工具。
+
+主要用途：
+- 快速截图：一键获取页面截图
+- 文档记录：保存页面状态用于报告或文档
+- 测试验证：验证页面显示效果
+- 问题报告：快速获取错误页面截图
+- 内容分享：将页面内容复制到其他应用
+
+特点：
+- 自动复制到剪贴板，可直接粘贴到其他应用
+- 返回 MCP 图像格式，支持在对话中显示
+- 包含图像尺寸信息`,
       {
         win_id: z.number().optional().describe("Window ID to capture (defaults to 1)")
       },
@@ -388,7 +479,7 @@ class ElectronMcpServer {
 
 
     // System tools
-    this.registerTool("ping", "Check if server is responding", {}, async () => {
+    this.registerTool("ping", "测试 MCP 服务器连接状态。用于验证服务器是否正常运行和响应。返回 'pong' 表示连接正常。", {}, async () => {
       return {
         content: [{ type: "text", text: "pong" }],
       };
@@ -402,6 +493,18 @@ class ElectronMcpServer {
   }
 
   async handleRequest(req, res) {
+    // 验证认证令牌
+    if (!this.validateAuth(req)) {
+      console.log('[MCP] Unauthorized request');
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "Unauthorized" },
+        id: null
+      }));
+      return;
+    }
+
     const sessionId = req.query.sessionId;
     console.log("[MCP] handleRequest called with sessionId:", sessionId);
     console.log("[MCP] Available transports:", Object.keys(transports));
@@ -427,6 +530,14 @@ class ElectronMcpServer {
   }
 
   async handleSSEConnection(req, res) {
+    // 验证认证令牌
+    if (!this.validateAuth(req)) {
+      console.log('[MCP] Unauthorized SSE connection');
+      res.writeHead(401, { 'Content-Type': 'text/plain' });
+      res.end('Unauthorized');
+      return;
+    }
+
     try {
       const transport = this.createTransport(res);
       res.on("close", () => {

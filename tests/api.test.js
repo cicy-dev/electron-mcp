@@ -279,7 +279,7 @@ describe('MCP HTTP API - 完整测试套件', () => {
           code: 'return webContents.getURL()'
         }
       });
-        console.log(response.result)
+      
       expect(response.result.isError).toBeUndefined();
       expect(response.result.content[0].type).toBe('text');
       expect(typeof response.result.content[0].text).toBe('string');
@@ -345,6 +345,143 @@ describe('MCP HTTP API - 完整测试套件', () => {
     });
 
   });
+
+  describe('invoke_window_webContents_debugger_cdp API 测试', () => {
+
+    // 1. 成功调用：检查调试器状态
+    test('应该成功访问 debugger 对象', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'return debuggerObj.isAttached()'
+        }
+      });
+
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].type).toBe('text');
+      expect(typeof response.result.content[0].text).toBe('string');
+    });
+
+    // 2. 成功调用：附加和分离调试器
+    test('应该能够附加和分离调试器', async () => {
+      // 先确保调试器未附加
+      await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'try { debuggerObj.detach(); } catch(e) {} return "cleaned"'
+        }
+      });
+
+      // 附加调试器
+      const attachResponse = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'debuggerObj.attach("1.3"); return "attached"'
+        }
+      });
+
+      expect(attachResponse.result.isError).toBeUndefined();
+      expect(attachResponse.result.content[0].text).toBe('attached');
+
+      // 检查是否已附加
+      const checkResponse = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'return debuggerObj.isAttached()'
+        }
+      });
+
+      expect(checkResponse.result.content[0].text).toBe('true');
+
+      // 分离调试器
+      const detachResponse = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'debuggerObj.detach(); return "detached"'
+        }
+      });
+
+      expect(detachResponse.result.isError).toBeUndefined();
+    });
+
+    // 3. 成功调用：发送 CDP 命令
+    test('应该能够发送 CDP 命令', async () => {
+      // 先确保调试器未附加
+      await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'try { debuggerObj.detach(); } catch(e) {} return "cleaned"'
+        }
+      });
+
+      // 附加调试器
+      await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'debuggerObj.attach("1.3")'
+        }
+      });
+
+      // 发送 Runtime.evaluate 命令
+      const response = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'return await debuggerObj.sendCommand("Runtime.evaluate", { expression: "1 + 1" })'
+        }
+      });
+
+      expect(response.result.isError).toBeUndefined();
+      const result = JSON.parse(response.result.content[0].text);
+      expect(result.result.value).toBe(2);
+
+      // 清理：分离调试器
+      await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'debuggerObj.detach()'
+        }
+      });
+    });
+
+    // 4. 错误处理：无效的 Window ID
+    test('访问不存在的 win_id 应该返回错误', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 99999,
+          code: 'return debuggerObj.isAttached()'
+        }
+      });
+
+      expect(response.result.isError).toBe(true);
+      expect(response.result.content[0].text).toContain('未找到 ID 为 99999 的窗口');
+    });
+
+    // 5. 错误处理：代码语法错误
+    test('代码语法错误时应该返回 isError', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'invoke_window_webContents_debugger_cdp',
+        arguments: {
+          win_id: 1,
+          code: 'if (true) { // 缺失括号'
+        }
+      });
+
+      expect(response.result.isError).toBe(true);
+      expect(response.result.content[0].text).toMatch(/执行失败|Unexpected token/);
+    });
+
+  });
+
   describe('invoke_window API 测试', () => {
 
     // 1. 获取窗口边界 (Bounds)
