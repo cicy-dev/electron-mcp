@@ -40,19 +40,34 @@ npm test -- --testNamePattern="test name"
 
 ### 1. Kiro CLI
 
-在 Kiro CLI 配置文件中添加：
+**方法一：命令行添加（推荐）**
+
+```bash
+# 添加 MCP 服务器到全局配置
+kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
+
+# 手动添加认证头到配置文件
+# 编辑 ~/.kiro/settings/mcp.json 添加 headers
+```
+
+**方法二：手动配置**
+
+在 `~/.kiro/settings/mcp.json` 中添加：
 
 ```json
 {
   "mcpServers": {
     "electron-mcp": {
-      "url": "http://localhost:8101/mcp"
+      "url": "http://localhost:8101/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
     }
   }
 }
 ```
 
-启动 Kiro CLI 后即可使用所有 MCP 工具。
+启动 Kiro CLI 后即可使用所有 MCP 工具。查看可用工具：`/mcp`
 
 
 

@@ -28,10 +28,11 @@ async function startServer() {
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    console.log(`Starting MCP Server on port ${PORT}...`);
+    console.log(`Starting MCP Server on port ${PORT} in background...`);
     const electronProcess = spawn('npx', ['electron', '.', `--port=${PORT}`], {
         cwd: __dirname,
-        stdio: process.env.NODE_ENV === 'test' ? 'pipe' : 'inherit'
+        stdio: process.env.NODE_ENV === 'test' ? 'pipe' : 'ignore',
+        detached: true
     });
 
     if (process.env.NODE_ENV === 'test') {
@@ -41,6 +42,10 @@ async function startServer() {
         electronProcess.stderr.on('data', (data) => {
             process.stderr.write(data);
         });
+    } else {
+        electronProcess.unref();
+        console.log(`MCP Server started with PID: ${electronProcess.pid}`);
+        process.exit(0);
     }
 
     process.on('SIGINT', () => electronProcess.kill('SIGINT'));
