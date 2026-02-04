@@ -527,4 +527,186 @@ describe('MCP HTTP API - 完整测试套件', () => {
       expect(typeof response.result.content[0].text).toBe('string');
     });
   });
+
+  describe('CDP 工具测试', () => {
+    let windowId = 1;
+
+    beforeAll(async () => {
+      // 确保有一个窗口可用于测试
+      const windowsResponse = await sendRequest('tools/call', {
+        name: 'get_windows',
+        arguments: {}
+      });
+      const windows = JSON.parse(windowsResponse.result.content[0].text);
+      if (windows.length > 0) {
+        windowId = windows[0].id;
+      }
+    });
+
+    test('cdp_click - 应该能点击页面指定坐标', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_click',
+        arguments: {
+          win_id: windowId,
+          x: 100,
+          y: 100
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Clicked at');
+    });
+
+    test('cdp_double_click - 应该能双击页面指定坐标', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_double_click',
+        arguments: {
+          win_id: windowId,
+          x: 150,
+          y: 150
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Double clicked at');
+    });
+
+    test('cdp_press_key - 应该能按下指定按键', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_press_key',
+        arguments: {
+          win_id: windowId,
+          key: 'Tab'
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Pressed key');
+    });
+
+    test('cdp_press_key_enter - 应该能按下回车键', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_press_key_enter',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Pressed Enter key');
+    });
+
+    test('cdp_press_key_esc - 应该能按下ESC键', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_press_key_esc',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Pressed Escape key');
+    });
+
+    test('cdp_press_key_copy - 应该能执行复制操作', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_press_key_copy',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Executed copy');
+    });
+
+    test('cdp_press_key_paste - 应该能执行粘贴操作', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_press_key_paste',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Executed paste');
+    });
+
+    test('cdp_type_text - 应该能输入文本', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_type_text',
+        arguments: {
+          win_id: windowId,
+          text: 'Hello World'
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Typed text');
+    });
+
+    test('cdp_scroll - 应该能滚动页面', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_scroll',
+        arguments: {
+          win_id: windowId,
+          x: 0,
+          y: 100
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Scrolled by');
+    });
+
+    test('cdp_find_element - 应该能查找页面元素', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_find_element',
+        arguments: {
+          win_id: windowId,
+          selector: 'body'
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Element found');
+    });
+
+    test('cdp_get_page_title - 应该能获取页面标题', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_get_page_title',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Page title');
+    });
+
+    test('cdp_get_page_url - 应该能获取页面URL', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_get_page_url',
+        arguments: {
+          win_id: windowId
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Current URL');
+    });
+
+    test('cdp_execute_script - 应该能执行JavaScript代码', async () => {
+      const response = await sendRequest('tools/call', {
+        name: 'cdp_execute_script',
+        arguments: {
+          win_id: windowId,
+          script: '1 + 1'
+        }
+      });
+      
+      expect(response.result.isError).toBeUndefined();
+      expect(response.result.content[0].text).toContain('Script result');
+    });
+  });
 });
