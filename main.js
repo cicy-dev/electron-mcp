@@ -899,6 +899,31 @@ class ElectronMcpServer {
     return transport;
   }
 
+  // 测试环境初始化方法
+  initTestTransport() {
+    if (process.env.TEST === 'true') {
+      const testTransport = {
+        sessionId: 'test',
+        handlePostMessage: async (req, res, body) => {
+          try {
+            const result = await this.server.handleRequest(body);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+          } catch (error) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              jsonrpc: "2.0",
+              error: { code: -32603, message: error.message },
+              id: body.id
+            }));
+          }
+        }
+      };
+      transports['test'] = testTransport;
+      console.log('[MCP] Test transport initialized with sessionId: test');
+    }
+  }
+
   async handleRequest(req, res) {
     // 验证认证令牌
     if (!this.validateAuth(req)) {
@@ -1009,6 +1034,9 @@ app.whenReady().then(async () => {
   httpServer.listen(PORT, () => {
     console.log(`MCP HTTP Server running on http://localhost:${PORT}`);
     console.log(`SSE endpoint: http://localhost:${PORT}/mcp`);
+    
+    // 初始化测试 transport
+    mcpServer.initTestTransport();
   });
     
     if(process.env.TEST){

@@ -34,7 +34,7 @@ describe('CDP Page Tools Tests', () => {
 
   const callTool = async (toolName, args = {}) => {
     const response = await request(baseURL)
-      .post('/mcp')
+      .post('/mcp?sessionId=test')
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         jsonrpc: '2.0',

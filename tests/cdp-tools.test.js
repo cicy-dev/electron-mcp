@@ -26,6 +26,16 @@ describe('CDP Tools API Tests', () => {
     if (fs.existsSync(tokenPath)) {
       authToken = fs.readFileSync(tokenPath, 'utf8').trim();
     }
+
+    // 建立 SSE 连接来创建 transport
+    try {
+      await request(baseURL)
+        .get('/mcp')
+        .set('Authorization', `Bearer ${authToken}`)
+        .timeout(2000);
+    } catch (error) {
+      // SSE 连接会超时，但会创建 transport
+    }
   });
 
   afterAll(async () => {
@@ -37,7 +47,7 @@ describe('CDP Tools API Tests', () => {
 
   const callTool = async (toolName, args = {}) => {
     const response = await request(baseURL)
-      .post('/mcp')
+      .post('/mcp?sessionId=test')
       .set('Authorization', `Bearer ${authToken}`)
       .send({
         jsonrpc: '2.0',
