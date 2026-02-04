@@ -7,15 +7,12 @@
     "start": "node start-mcp.js",
     "test": "jest --forceExit --testTimeout=30000",
     "test:api": "jest tests/api.test.js --forceExit --testTimeout=30000",
-    "test:shell": "jest tests/shell.test.js --forceExit --testTimeout=30000",
-    "test:python": "jest tests/python.test.js --forceExit --testTimeout=30000",
+    "test:cdp": "jest tests/cdp-tools.test.js --forceExit --testTimeout=30000",
     "test:cdp-mouse": "jest tests/cdp-mouse.test.js --forceExit --testTimeout=30000",
     "test:cdp-keyboard": "jest tests/cdp-keyboard.test.js --forceExit --testTimeout=30000",
-    "test:cdp-screenshot": "jest tests/cdp-screenshot.test.js --forceExit --testTimeout=30000",
-    "test:cdp-network": "jest tests/cdp-network.test.js --forceExit --testTimeout=30000",
-    "test:storage": "jest tests/storage.test.js --forceExit --testTimeout=30000",
-    "test:all": "jest --forceExit --testTimeout=30000",
-    "install-deps": "npm install chrome-remote-interface"
+    "test:cdp-page": "jest tests/cdp-page.test.js --forceExit --testTimeout=30000",
+    "test:all-cdp": "jest tests/cdp-*.test.js --forceExit --testTimeout=30000",
+    "test:all": "jest --forceExit --testTimeout=30000"
   },
   "keywords": [
     "electron",
