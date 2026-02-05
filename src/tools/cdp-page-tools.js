@@ -1,7 +1,7 @@
 const { BrowserWindow } = require('electron');
 const { z } = require("zod");
 
-function registerCdpPageTools(server) {
+function registerTools(server) {
   server.registerTool(
     "cdp_scroll",
     "使用 CDP 滚动页面",
@@ -82,4 +82,4 @@ function registerCdpPageTools(server) {
   );
 }
 
-module.exports = { registerCdpPageTools };
+module.exports = registerTools;

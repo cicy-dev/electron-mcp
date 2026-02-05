@@ -1,7 +1,7 @@
 const { BrowserWindow } = require('electron');
 const { z } = require("zod");
 
-function registerCdpKeyboardTools(server) {
+function registerTools(server) {
   server.registerTool(
     "cdp_press_key",
     "使用 CDP 按键",
@@ -74,4 +74,4 @@ function registerCdpKeyboardTools(server) {
   );
 }
 
-module.exports = { registerCdpKeyboardTools };
+module.exports = registerTools;

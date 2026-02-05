@@ -2,7 +2,7 @@ const { BrowserWindow } = require('electron');
 const { z } = require("zod");
 const { captureSnapshot } = require('../snapshot-utils');
 
-function registerScreenshotTools(server) {
+function registerTools(server) {
   server.registerTool(
     "webpage_screenshot_and_to_clipboard",
     "截图并复制到剪贴板",
@@ -25,4 +25,4 @@ function registerScreenshotTools(server) {
   );
 }
 
-module.exports = { registerScreenshotTools };
+module.exports = registerTools;

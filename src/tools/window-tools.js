@@ -2,7 +2,7 @@ const { BrowserWindow } = require('electron');
 const { z } = require("zod");
 const { setupNetworkMonitoring } = require('../network-monitor');
 
-function registerWindowTools(server) {
+function registerTools(server) {
   server.registerTool(
     "open_window",
     "打开新的浏览器窗口",
@@ -117,4 +117,4 @@ function registerWindowTools(server) {
   );
 }
 
-module.exports = { registerWindowTools };
+module.exports = registerTools;

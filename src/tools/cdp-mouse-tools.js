@@ -1,7 +1,7 @@
 const { BrowserWindow } = require('electron');
 const { z } = require("zod");
 
-function registerCdpMouseTools(server) {
+function registerTools(server) {
   server.registerTool(
     "cdp_click",
     "使用 CDP 点击坐标",
@@ -56,4 +56,4 @@ function registerCdpMouseTools(server) {
   );
 }
 
-module.exports = { registerCdpMouseTools };
+module.exports = registerTools;

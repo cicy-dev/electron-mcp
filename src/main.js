@@ -4,12 +4,7 @@ const http = require("http");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
 
-const { registerWindowTools } = require('./tools/window-tools');
-const { registerCdpMouseTools } = require('./tools/cdp-mouse-tools');
-const { registerCdpKeyboardTools } = require('./tools/cdp-keyboard-tools');
-const { registerCdpPageTools } = require('./tools/cdp-page-tools');
-const { registerCodeExecutionTools } = require('./tools/code-execution-tools');
-const { registerScreenshotTools } = require('./tools/screenshot-tools');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -27,9 +22,29 @@ const mcpServer = new McpServer({
   description: "Electron MCP Server with browser automation tools",
 });
 
-function registerTool(name, description, schema, handler) {
-  mcpServer.registerTool(name, { title: name, description, inputSchema: schema }, handler);
+function registerTool(title, description, schema, handler) {
+  mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s)=>{
+    try{
+      return handler(s)
+    }catch(e){
+      console.error("Error",title,e)
+      return {
+          content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
+          isError: true,
+        };
+    }
+  });
 }
+
+require('./tools/window-tools')({ registerTool });
+
+
+// const { registerCdpMouseTools } = require('./tools/cdp-mouse-tools');
+// const { registerCdpKeyboardTools } = require('./tools/cdp-keyboard-tools');
+// const { registerCdpPageTools } = require('./tools/cdp-page-tools');
+// const { registerCodeExecutionTools } = require('./tools/code-execution-tools');
+// const { registerScreenshotTools } = require('./tools/screenshot-tools');
+
 
 function createTransport(res) {
   const transport = new SSEServerTransport("/messages", res);
@@ -47,12 +62,7 @@ function createTransport(res) {
   return transport;
 }
 
-registerWindowTools({ registerTool });
-registerCdpMouseTools({ registerTool });
-registerCdpKeyboardTools({ registerTool });
-registerCdpPageTools({ registerTool });
-registerCodeExecutionTools({ registerTool });
-registerScreenshotTools({ registerTool });
+ 
 
 app.get("/mcp", async (req, res) => {
   try {

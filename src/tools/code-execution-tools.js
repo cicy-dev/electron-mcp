@@ -1,7 +1,7 @@
 const { BrowserWindow } = require('electron');
 const { z } = require('zod');
 
-function registerCodeExecutionTools(server) {
+function registerTools(server) {
   server.registerTool(
     "invoke_window",
     "调用 BrowserWindow 方法",
@@ -68,4 +68,4 @@ function registerCodeExecutionTools(server) {
   );
 }
 
-module.exports = { registerCodeExecutionTools };
+module.exports = registerTools;

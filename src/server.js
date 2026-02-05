@@ -28,7 +28,9 @@ function createTransport(res) {
 }
 
 function registerTool(name, description, schema, handler) {
-  mcpServer.registerTool(name, { title: name, description, inputSchema: schema }, handler);
+  mcpServer.registerTool(name, { title: name, description, inputSchema: schema },async ()=>{
+    
+  });
 }
 
 registerTool("get_windows", "Get all windows", {}, async () => {
