@@ -29,7 +29,15 @@ pkill electron
 export URL=https://www.douyin.com/video/7594434780347813155 
 export TEST=true 
 export DISPLAY=:1
-npx electron main.js
+npx electron src/main.js 
+
+----
+pkill electron
+export URL=https://aistudio.google.com/
+export TEST=true 
+export DISPLAY=:1
+npx electron src/main.js  -- --port=8101
+
 
 ```
 
@@ -106,24 +114,34 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 ```bash
 # 获取工具列表
-curl http://localhost:8101/tools/list
+curl http://localhost:8101/mcp
 
 # 调用工具
-curl -X POST http://localhost:8101/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "get_windows",
-    "arguments": {}
-  }'
 
-# 使用认证令牌
-curl -X POST http://localhost:8101/tools/call \
+curl -X POST http://localhost:8101/mcp?sessionId=test \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
   -d '{
+  "method": "tools/list",
+  "params": {
+  },
+  "jsonrpc": "2.0",
+  "id": 0
+}'
+
+# 使用认证令牌
+curl -X POST http://localhost:8101/mcp?sessionId=test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
+  -d '{
+  "method": "tools/call",
+  "params": {
     "name": "get_windows",
     "arguments": {}
-  }'
+  },
+  "jsonrpc": "2.0",
+  "id": 5
+}'
 
 # MCP 端点
 curl http://localhost:8101/mcp

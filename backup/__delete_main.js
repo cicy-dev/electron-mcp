@@ -3,7 +3,7 @@ const http = require('http');
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
 const { z } = require("zod");
-const { captureSnapshot, buildSnapshotText } = require('./snapshot-utils');
+const { captureSnapshot, buildSnapshotText } = require('../snapshot-utils');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -12,6 +12,19 @@ const os = require('os');
 const PORT = parseInt(process.env.PORT || process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] || '8101');
 const transports = {};
 
+if(process.platform === "linux"){
+  // 1. 解决 D-Bus 和桌面环境依赖问题
+  app.commandLine.appendSwitch('no-sandbox'); // Linux 服务器环境通常需要
+  app.commandLine.appendSwitch('disable-gpu'); // 除非你有显卡驱动，否则禁用 GPU 加速
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+  app.commandLine.appendSwitch('disable-dev-shm-usage'); // 防止在 Docker/GCP 等容器环境内存不足
+  app.commandLine.appendSwitch('disable-setuid-sandbox');
+
+  // 2. 忽略 D-Bus 错误（解决你日志中的 ERROR:dbus）
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+  process.env.DBUS_SESSION_BUS_ADDRESS = '/dev/null'; // 强制让它找不到 bus，从而停止报错尝试
+
+}
 // 网络监听相关变量
 const requestMap = new Map();
 const saveDir = path.join(os.homedir(), 'data', 'captured_data');
@@ -67,7 +80,7 @@ const on_finish_load = (win)=>{
     win.webContents.debugger.on('message', async (event, method, params) => {
         
         if (method === 'Network.requestWillBeSent') {
-            console.log(params.request.url)
+            //console.log(params.request.url)
             requestMap.set(params.requestId, { url: params.request.url, method: params.request.method });
         }
         if (method === 'Network.responseReceived') {
@@ -140,6 +153,15 @@ class ElectronMcpServer {
   // 验证认证令牌
   validateAuth(req) {
     const authHeader = req.headers.authorization;
+
+    console.log(">> url:",req.url)
+    // if (req.body) {
+    //   console.log(">> body:", JSON.stringify(req.body, null, 2));
+    // } else {
+    //   console.log(">> body: [Empty or not parsed]");
+    // }
+    // console.log(">> headers:", JSON.stringify(req.headers, null, 2),authHeader);
+
     if (!authHeader) return false;
     
     const token = authHeader.replace('Bearer ', '');
@@ -972,27 +994,27 @@ class ElectronMcpServer {
 
   // 测试环境初始化方法
   initTestTransport() {
-    if (process.env.TEST === 'true') {
-      const testTransport = {
-        sessionId: 'test',
-        handlePostMessage: async (req, res, body) => {
-          try {
-            const result = await this.server.handleRequest(body);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(result));
-          } catch (error) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              jsonrpc: "2.0",
-              error: { code: -32603, message: error.message },
-              id: body.id
-            }));
-          }
-        }
-      };
-      transports['test'] = testTransport;
-      console.log('[MCP] Test transport initialized with sessionId: test');
-    }
+    // if (process.env.TEST === 'true') {
+    //   const testTransport = {
+    //     sessionId: 'test',
+    //     handlePostMessage: async (req, res, body) => {
+    //       try {
+    //         const result = await this.server.handleRequest(body);
+    //         res.writeHead(200, { 'Content-Type': 'application/json' });
+    //         res.end(JSON.stringify(result));
+    //       } catch (error) {
+    //         res.writeHead(500, { 'Content-Type': 'application/json' });
+    //         res.end(JSON.stringify({
+    //           jsonrpc: "2.0",
+    //           error: { code: -32603, message: error.message },
+    //           id: body.id
+    //         }));
+    //       }
+    //     }
+    //   };
+    //   transports['test'] = testTransport;
+    //   console.log('[MCP] Test transport initialized with sessionId: test');
+    // }
   }
 
   async handleRequest(req, res) {
