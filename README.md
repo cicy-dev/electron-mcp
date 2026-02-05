@@ -24,6 +24,13 @@ npm start
 
 # 或指定端口启动
 npm start -- --port=8102
+
+pkill electron
+export URL=https://www.douyin.com/video/7594434780347813155 
+export TEST=true 
+export DISPLAY=:1
+npx electron main.js
+
 ```
 
 ### 运行测试

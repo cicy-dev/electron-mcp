@@ -12,6 +12,23 @@ const os = require('os');
 const PORT = parseInt(process.env.PORT || process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] || '8101');
 const transports = {};
 
+// 网络监听相关变量
+const requestMap = new Map();
+const saveDir = path.join(os.homedir(), 'data', 'captured_data');
+
+// 代码美化函数
+function prettifyCode(content, type) {
+  try {
+    if (type === 'json') {
+      return JSON.stringify(JSON.parse(content), null, 2);
+    }
+    // 对于其他类型，暂时返回原内容
+    return content;
+  } catch (e) {
+    return content;
+  }
+}
+
 // 令牌管理
 function getOrGenerateToken() {
   const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
@@ -45,6 +62,60 @@ const on_finish_load = (win)=>{
             win.webContents.debugger.sendCommand('Network.enable');
         } catch (err) { }
     }
+
+    // 添加网络监听
+    win.webContents.debugger.on('message', async (event, method, params) => {
+        
+        if (method === 'Network.requestWillBeSent') {
+            console.log(params.request.url)
+            requestMap.set(params.requestId, { url: params.request.url, method: params.request.method });
+        }
+        if (method === 'Network.responseReceived') {
+            const info = requestMap.get(params.requestId);
+            if (info) {
+                info.mimeType = params.response.mimeType;
+                requestMap.set(params.requestId, info);
+            }
+        }
+        if (method === 'Network.loadingFinished') {
+            const info = requestMap.get(params.requestId);
+            if (!info) return;
+            try {
+                const result = await win.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId });
+                let content = result.body;
+                const mimeType = info.mimeType || '';
+                const fullUrl = info.url;
+                const urlObj = new URL(fullUrl);
+                const domain = urlObj.hostname;
+                const pathname = urlObj.pathname;
+                let fileName = pathname === '/' ? 'index.html' : path.basename(pathname);
+                if (!fileName) fileName = 'index.html';
+
+                const domainDir = path.join(saveDir, domain);
+                let typeFolder = 'others';
+                let fileExt = path.extname(fileName).toLowerCase();
+
+                if (mimeType.includes('text/html')) { typeFolder = 'html'; if (!result.base64Encoded) content = prettifyCode(content, 'html'); }
+                else if (mimeType.includes('json') || fileExt === '.json') {
+                    typeFolder = 'json';
+                    if (!result.base64Encoded) {
+                        content = prettifyCode(content, 'json');
+                    }
+                }
+                else if (fileExt.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)$/) || mimeType.includes('image/')) { typeFolder = 'images'; }
+                else if (mimeType.includes('javascript') || fileExt === '.js') { typeFolder = 'js'; if (!result.base64Encoded) content = prettifyCode(content, 'js'); }
+                else if (mimeType.includes('css') || fileExt === '.css') { typeFolder = 'css'; if (!result.base64Encoded) content = prettifyCode(content, 'css'); }
+
+                const targetDir = path.join(domainDir, typeFolder);
+                if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+                const filePath = path.join(targetDir, fileName);
+                fs.writeFileSync(filePath, result.base64Encoded ? result.body : content, result.base64Encoded ? 'base64' : 'utf8');
+
+                win.webContents.session.flushStorageData();
+            } catch (e) { }
+        }
+    });
 }
 class ElectronMcpServer {
   constructor() {
@@ -1040,6 +1111,7 @@ app.whenReady().then(async () => {
   });
     
     if(process.env.TEST){
+        
         const win = new BrowserWindow({
             width: 1000,
             height: 800,
@@ -1049,7 +1121,7 @@ app.whenReady().then(async () => {
               partition: 'persist:mcp'
             },
           })
-        win.loadURL("http://www.google.com");
+        win.loadURL(process.env.URL || "http://www.google.com");
         win.webContents.on('did-finish-load', () => {
            on_finish_load(win)
         });
