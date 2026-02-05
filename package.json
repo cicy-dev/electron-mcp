@@ -2,9 +2,9 @@
   "name": "electron-mcp-capture",
   "version": "1.0.0",
   "description": "Electron MCP 网站资源捕获器",
-  "main": "main.js",
+  "main": "src/main.js",
   "scripts": {
-    "start": "node start-mcp.js",
+    "start": "electron .",
     "test": "jest --forceExit --testTimeout=30000",
     "test:api": "jest tests/api.test.js --forceExit --testTimeout=30000",
     "test:cdp": "jest tests/cdp-tools.test.js --forceExit --testTimeout=30000",
