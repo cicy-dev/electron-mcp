@@ -2,6 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const beautify = require("js-beautify");
+const { createLogger } = require("./logger");
+
+const logger = createLogger("WindowMonitor");
 
 // 存储每个窗口的日志和请求
 const windowLogs = new Map();
@@ -22,32 +25,38 @@ function prettifyCode(code, type) {
     if (type === "html") return beautify.html(code, { indent_size: 2 });
     if (type === "js") return beautify.js(code, { indent_size: 2 });
     if (type === "css") return beautify.css(code, { indent_size: 2 });
-  } catch (e) {}
+  } catch (e) {
+    logger.debug(`Failed to prettify ${type} code`, e);
+  }
   return code;
 }
 
 function initWindowMonitoring(win) {
   const winId = win.id;
+  logger.info(`Initializing monitoring for window ${winId}`);
 
-  // 初始化队列和计数器
-  windowLogs.set(winId, []);
-  windowRequests.set(winId, []);
-  windowRequestDetails.set(winId, new Map());
-  windowIndexCounters.set(winId, { log: 0, request: 0 });
+  try {
+    // 初始化队列和计数器
+    windowLogs.set(winId, []);
+    windowRequests.set(winId, []);
+    windowRequestDetails.set(winId, new Map());
+    windowIndexCounters.set(winId, { log: 0, request: 0 });
 
-  // 创建捕获目录
-  if (!fs.existsSync(CAPTURE_DIR)) {
-    fs.mkdirSync(CAPTURE_DIR, { recursive: true });
-  }
+    // 创建捕获目录
+    if (!fs.existsSync(CAPTURE_DIR)) {
+      fs.mkdirSync(CAPTURE_DIR, { recursive: true });
+      logger.info(`Created capture directory: ${CAPTURE_DIR}`);
+    }
 
-  // 监听控制台日志
-  win.webContents.on("console-message", (event, level, message, line, sourceId) => {
-    const logs = windowLogs.get(winId);
-    const counters = windowIndexCounters.get(winId);
-    if (logs && counters) {
-      logs.push({
-        index: ++counters.log,
-        timestamp: Date.now(),
+    // 监听控制台日志
+    win.webContents.on("console-message", (event, level, message, line, sourceId) => {
+      try {
+        const logs = windowLogs.get(winId);
+        const counters = windowIndexCounters.get(winId);
+        if (logs && counters) {
+          logs.push({
+            index: ++counters.log,
+            timestamp: Date.now(),
         level: ["verbose", "info", "warning", "error"][level] || "log",
         message,
         line,
