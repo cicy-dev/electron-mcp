@@ -1,18 +1,27 @@
-const { setupTest, teardownTest, callTool } = require("./test-utils");
+const { setPort, setupTest, teardownTest, sendRequest } = require("./test-utils");
 
 describe("Event Trigger Tests", () => {
-  let context;
+  let winId;
 
   beforeAll(async () => {
-    context = await setupTest();
+    setPort(9843);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await setupTest();
+
+    const openResponse = await sendRequest("tools/call", {
+      name: "open_window",
+      arguments: { url: "https://google.com" },
+    });
+    const text = openResponse.result.content[0].text;
+    winId = parseInt(text.match(/\d+/)[0]);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }, 60000);
 
   afterAll(async () => {
-    await teardownTest(context);
+    await teardownTest();
   }, 60000);
 
   test("Keyboard and mouse events trigger console.log", async () => {
-    const { win_id } = context;
 
     // 创建输入框并绑定事件
     const setupCode = `
@@ -47,76 +56,78 @@ describe("Event Trigger Tests", () => {
       'Events bound successfully';
     `;
 
-    const setupResult = await callTool(context, "exec_js", {
-      win_id,
-      code: setupCode,
+    const setupResult = await sendRequest("tools/call", {
+      name: "exec_js",
+      arguments: { win_id: winId, code: setupCode },
     });
-    console.log("✅ Setup:", setupResult.content[0].text);
+    console.log("✅ Setup:", setupResult.result.content[0].text);
 
     // 等待页面渲染
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // 获取输入框位置
-    const boundResult = await callTool(context, "get_element_client_bound", {
-      win_id,
-      selector: "#test-input",
+    const boundResult = await sendRequest("tools/call", {
+      name: "get_element_client_bound",
+      arguments: { win_id: winId, selector: "#test-input" },
     });
-    const bound = JSON.parse(boundResult.content[0].text);
+    const bound = JSON.parse(boundResult.result.content[0].text);
     const centerX = bound.x + bound.width / 2;
     const centerY = bound.y + bound.height / 2;
 
     console.log(`📍 Input box at (${centerX}, ${centerY})`);
 
-    // 清空之前的日志
-    await callTool(context, "exec_js", {
-      win_id,
-      code: "console.clear(); 'Logs cleared';",
-    });
-
     // 1. 点击输入框
-    await callTool(context, "cdp_click", {
-      win_id,
-      x: centerX,
-      y: centerY,
+    await sendRequest("tools/call", {
+      name: "cdp_click",
+      arguments: { win_id: winId, x: centerX, y: centerY },
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 2. 输入文本
-    await callTool(context, "cdp_type_text", {
-      win_id,
-      text: "Hello",
+    await sendRequest("tools/call", {
+      name: "cdp_type_text",
+      arguments: { win_id: winId, text: "Hello" },
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 3. 按回车
-    await callTool(context, "cdp_press_enter", { win_id });
+    await sendRequest("tools/call", {
+      name: "cdp_press_enter",
+      arguments: { win_id: winId },
+    });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 4. 双击输入框
-    await callTool(context, "cdp_dblclick", {
-      win_id,
-      x: centerX,
-      y: centerY,
+    await sendRequest("tools/call", {
+      name: "cdp_dblclick",
+      arguments: { win_id: winId, x: centerX, y: centerY },
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 5. 按退格键
-    await callTool(context, "cdp_press_backspace", { win_id });
+    await sendRequest("tools/call", {
+      name: "cdp_press_backspace",
+      arguments: { win_id: winId },
+    });
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 获取控制台日志
-    const logsResult = await callTool(context, "get_console_logs", { win_id });
-    const logs = JSON.parse(logsResult.content[0].text);
+    const logsResult = await sendRequest("tools/call", {
+      name: "get_console_logs",
+      arguments: { win_id: winId, page_size: 100 },
+    });
+    const logsData = JSON.parse(logsResult.result.content[0].text);
+    const logArray = logsData.data || [];
 
-    console.log("\n📋 Console Logs Captured:");
+    console.log(`\n📋 Console Logs Captured (${logsData.total} total):`);
     console.log("─".repeat(80));
-    logs.forEach((log, i) => {
-      console.log(`${i + 1}. [${log.type}] ${log.text}`);
+    logArray.forEach((log, i) => {
+      console.log(`${i + 1}. [${log.level}] ${log.message}`);
     });
     console.log("─".repeat(80));
 
     // 验证事件
-    const logTexts = logs.map((l) => l.text).join(" ");
+    const logTexts = logArray.map((l) => l.message).join(" ");
 
     expect(logTexts).toContain("CLICK");
     expect(logTexts).toContain("KEYDOWN");
