@@ -6,6 +6,11 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
+// 重写 console.log，直接输出到 stderr，绕过 Jest 拦截
+console.log = (...args) => {
+  process.stderr.write(args.join(" ") + "\n");
+};
+
 let PORT = 9843;
 let baseURL = `http://localhost:${PORT}`;
 let initUrl = "http://www.google.com";

@@ -5,6 +5,7 @@ const {
   getConsoleLogs,
   getRequests,
   getRequestDetail,
+  clearRequests,
 } = require("../utils/window-monitor");
 const { captureSnapshot } = require("../utils/snapshot-utils");
 const { createWindow, getWindowInfo } = require("../utils/window-utils");

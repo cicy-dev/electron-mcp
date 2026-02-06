@@ -5,9 +5,11 @@ const beautify = require("js-beautify");
 
 // 存储每个窗口的日志和请求
 const windowLogs = new Map();
-const windowRequests = new Map();
+const windowRequests = new Map(); // 已废弃，保留兼容性
 const windowRequestDetails = new Map();
 const windowIndexCounters = new Map();
+const windowBeforeSendRequests = new Map(); // onBeforeSendHeaders 捕获的所有请求
+const windowLoadingFinishedRequests = new Map(); // loadingFinished 捕获的完成请求
 
 const MAX_INLINE_SIZE = 1024; // 1KB
 const CAPTURE_DIR = path.join(
@@ -31,9 +33,35 @@ function initWindowMonitoring(win) {
 
   // 初始化队列和计数器
   windowLogs.set(winId, []);
-  windowRequests.set(winId, []);
+  windowRequests.set(winId, []); // 保留兼容性
   windowRequestDetails.set(winId, new Map());
   windowIndexCounters.set(winId, { log: 0, request: 0 });
+  windowBeforeSendRequests.set(winId, []); // 初始化 beforeSend 请求列表
+  windowLoadingFinishedRequests.set(winId, new Map()); // 初始化 loadingFinished 请求 Map (key: requestId)
+
+  // 监听 onBeforeSendHeaders - 捕获所有请求
+  win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    const beforeSendList = windowBeforeSendRequests.get(winId);
+    if (beforeSendList) {
+      beforeSendList.push({
+        timestamp: Date.now(),
+        url: details.url,
+        method: details.method,
+        resourceType: details.resourceType,
+        referrer: details.referrer,
+        requestHeaders: details.requestHeaders,
+      });
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  // 立即启用网络监控（在任何请求之前）
+  try {
+    win.webContents.debugger.sendCommand("Network.enable");
+    console.log(`[Window ${winId}] Network monitoring enabled`);
+  } catch (e) {
+    console.error(`[Window ${winId}] Failed to enable Network:`, e);
+  }
 
   // 创建捕获目录
   if (!fs.existsSync(CAPTURE_DIR)) {
@@ -56,8 +84,20 @@ function initWindowMonitoring(win) {
     }
   });
 
-  // 监听网络请求
+  // 监听网络请求 - 只监听 loadingFinished
   win.webContents.debugger.on("message", async (event, method, params) => {
+    if (method === "Network.loadingFinished") {
+      const loadingFinishedMap = windowLoadingFinishedRequests.get(winId);
+      if (loadingFinishedMap) {
+        loadingFinishedMap.set(params.requestId, {
+          timestamp: Date.now(),
+          requestId: params.requestId,
+          encodedDataLength: params.encodedDataLength,
+        });
+      }
+    }
+
+    // 保留旧的 requestWillBeSent 逻辑以兼容现有代码
     if (method === "Network.requestWillBeSent") {
       const requests = windowRequests.get(winId);
       const details = windowRequestDetails.get(winId);
@@ -67,6 +107,15 @@ function initWindowMonitoring(win) {
         const index = ++counters.request;
         const postData = params.request.postData;
         const postDataSize = postData ? Buffer.byteLength(postData, "utf8") : 0;
+
+        // 打印包含 __vid 的请求
+        if (params.request.url.includes('__vid')) {
+          console.log('\n=== REQUEST WITH __vid DETECTED ===');
+          console.log('URL:', params.request.url);
+          console.log('Method:', params.request.method);
+          console.log('Type:', params.type);
+          console.log('===================================\n');
+        }
 
         requests.push({
           index,
@@ -204,20 +253,14 @@ function initWindowMonitoring(win) {
     }
   });
 
-  // 启用网络监控
-  try {
-    win.webContents.debugger.sendCommand("Network.enable");
-  } catch (e) {
-    console.error("Failed to enable Network:", e);
-  }
 
-  // 页面重载时清空队列并重置计数器
-  win.webContents.on("did-start-loading", () => {
-    windowLogs.set(winId, []);
-    windowRequests.set(winId, []);
-    windowRequestDetails.set(winId, new Map());
-    windowIndexCounters.set(winId, { log: 0, request: 0 });
-  });
+  // 页面重载时清空队列并重置计数器（注释掉，避免误清空）
+  // win.webContents.on("did-start-loading", () => {
+  //   windowLogs.set(winId, []);
+  //   windowRequests.set(winId, []);
+  //   windowRequestDetails.set(winId, new Map());
+  //   windowIndexCounters.set(winId, { log: 0, request: 0 });
+  // });
 
   // 窗口关闭时清理
   win.on("closed", () => {
@@ -240,6 +283,24 @@ function getConsoleLogs(winId) {
 
 function getRequests(winId) {
   return windowRequests.get(winId) || [];
+}
+
+function getBeforeSendRequests(winId) {
+  return windowBeforeSendRequests.get(winId) || [];
+}
+
+function getLoadingFinishedRequests(winId) {
+  const map = windowLoadingFinishedRequests.get(winId);
+  return map ? Array.from(map.values()) : [];
+}
+
+function clearRequests(winId) {
+  windowLogs.set(winId, []);
+  windowRequests.set(winId, []);
+  windowBeforeSendRequests.set(winId, []);
+  windowLoadingFinishedRequests.set(winId, new Map());
+  windowRequestDetails.set(winId, new Map());
+  windowIndexCounters.set(winId, { log: 0, request: 0 });
 }
 
 function getRequestDetail(winId, index) {
@@ -280,5 +341,8 @@ module.exports = {
   initWindowMonitoring,
   getConsoleLogs,
   getRequests,
+  getBeforeSendRequests,
+  getLoadingFinishedRequests,
   getRequestDetail,
+  clearRequests,
 };
