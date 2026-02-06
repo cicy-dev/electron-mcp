@@ -202,15 +202,28 @@ function registerTools(registerTool) {
 
   registerTool(
     "get_console_logs",
-    "获取窗口的控制台日志。返回自窗口创建或上次重载以来的所有 console 输出，包括 log/info/warning/error 等级别。支持分页查询。",
+    "获取窗口的控制台日志。返回自窗口创建或上次重载以来的所有 console 输出，包括 log/info/warning/error 等级别。支持分页查询和过滤。",
     z.object({
       win_id: z.number().describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
       page_size: z.number().optional().default(50).describe("每页数量"),
+      keyword: z.string().optional().describe("关键词过滤，匹配日志消息"),
+      level: z.enum(["verbose", "info", "warning", "error"]).optional().describe("日志级别过滤"),
     }),
-    async ({ win_id, page, page_size }) => {
+    async ({ win_id, page, page_size, keyword, level }) => {
       try {
-        const logs = getConsoleLogs(win_id);
+        let logs = getConsoleLogs(win_id);
+        
+        // 关键词过滤
+        if (keyword) {
+          logs = logs.filter(log => log.message.includes(keyword));
+        }
+        
+        // 级别过滤
+        if (level) {
+          logs = logs.filter(log => log.level === level);
+        }
+        
         const start = (page - 1) * page_size;
         const end = start + page_size;
         const paginated = logs.slice(start, end);
@@ -518,8 +531,9 @@ function registerTools(registerTool) {
       win_id: z.number().optional().describe("Window ID"),
       max_elements: z.number().optional().default(20).describe("最大元素数量"),
       include_screenshot: z.boolean().optional().default(true).describe("是否包含截图"),
+      show_overlays: z.boolean().optional().default(false).describe("是否显示可点击元素遮罩(5秒后消失)"),
     }),
-    async ({ win_id, max_elements, include_screenshot }) => {
+    async ({ win_id, max_elements, include_screenshot, show_overlays }) => {
       try {
         const actualWinId = win_id || 1;
         const win = BrowserWindow.fromId(actualWinId);
@@ -627,6 +641,24 @@ function registerTools(registerTool) {
               mimeType: "image/png",
             });
           }
+        }
+
+        if (show_overlays) {
+          await win.webContents.executeJavaScript(`
+            (function() {
+              const elements = ${JSON.stringify(result.interactive_elements)};
+              elements.forEach((el, i) => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = \`position:fixed;left:\${el.x}px;top:\${el.y}px;width:\${el.width}px;height:\${el.height}px;background:rgba(255,0,0,0.2);border:2px solid red;z-index:999999;pointer-events:none;box-sizing:border-box\`;
+                const label = document.createElement('div');
+                label.textContent = i + 1;
+                label.style.cssText = 'position:absolute;top:2px;left:2px;background:red;color:white;padding:2px 6px;font-size:12px;font-weight:bold;font-family:monospace;line-height:1';
+                overlay.appendChild(label);
+                document.body.appendChild(overlay);
+                setTimeout(() => overlay.remove(), 5000);
+              });
+            })()
+          `);
         }
 
         return { content: response };

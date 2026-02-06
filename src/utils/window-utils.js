@@ -1,6 +1,7 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
 const { config } = require("../config");
+const { initWindowMonitoring } = require("./window-monitor");
 
 app.name = "ElectronMCP";
 
@@ -10,9 +11,7 @@ function setupWindowHandlers(win) {
   }
 
   // 初始化窗口监控（在 dom-ready 之前调用）
-  if (typeof initWindowMonitoring === "function") {
-    initWindowMonitoring(win);
-  }
+  initWindowMonitoring(win);
 
   win.webContents.on("dom-ready", async () => {
     try {
@@ -38,12 +37,24 @@ function setupWindowHandlers(win) {
 }
 
 function createWindow(options = {}, accountIdx = 0) {
-  const { width = 1200, height = 800, url, webPreferences = {} } = options;
+  const { width = 1200, height = 800, url, webPreferences = {}, x, y } = options;
+
+  // 如果没有指定 x, y，则根据现有窗口自动偏移
+  let posX = x;
+  let posY = y;
+  
+  if (posX === undefined || posY === undefined) {
+    const allWindows = BrowserWindow.getAllWindows();
+    const offset = allWindows.length * 30; // 每个窗口偏移30px
+    posX = posX !== undefined ? posX : offset;
+    posY = posY !== undefined ? posY : offset;
+  }
 
   const win = new BrowserWindow({
     width,
     height,
-    x:0,y:0,
+    x: posX,
+    y: posY,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

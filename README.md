@@ -4,6 +4,10 @@
 
 ## 功能特性
 
+### 核心工具
+
+- `ping` - 测试 MCP 服务器连接
+
 ### 窗口管理
 
 - `get_windows` - 获取所有窗口列表和详细信息
@@ -43,7 +47,6 @@
 - `inject_auto_run_when_dom_ready_js_read` - 读取已注入的 JS
 - `get_element_client_bound` - 获取元素位置和尺寸
 - `show_float_div` - 显示可拖拽调试浮动框
-- `del_float_div` - 删除浮动框
 
 ### 网络监控
 
@@ -55,11 +58,8 @@
 ### 截图与下载
 
 - `webpage_screenshot_and_to_clipboard` - 截图并复制到剪贴板
+- `webpage_snapshot` - 网页快照（截图+HTML）
 - `session_download_url` - 下载文件到指定路径
-
-### 系统工具
-
-- `ping` - 测试连接
 
 ## 快速开始
 

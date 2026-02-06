@@ -80,6 +80,7 @@ function registerTool(title, description, schema, handler) {
 
 require("./tools/ping")(registerTool);
 require("./tools/window-tools")(registerTool);
+require("./tools/cdp-tools")(registerTool);
 require("./tools/exec-js")(registerTool);
 
 function createTransport(res) {

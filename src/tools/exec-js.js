@@ -215,7 +215,7 @@ function registerTools(registerTool) {
             
             // 关闭按钮
             var closeBtn = document.createElement('div');
-            closeBtn.innerHTML = 'X';
+            closeBtn.textContent = 'X';
             closeBtn.style.cssText = 'position:absolute;top:50%;right:4px;transform:translateY(-50%);width:16px;height:16px;cursor:pointer;font-size:12px;font-weight:bold;background:#fff;color:#f00;text-align:center;line-height:16px;';
             closeBtn.onclick = function(e) { e.stopPropagation(); div.remove(); };
             div.appendChild(closeBtn);
