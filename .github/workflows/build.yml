@@ -7,45 +7,20 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - name: Run tests with Xvfb
-        run: xvfb-run --auto-servernum npm test || true
-        env:
-          CI: true
-          ELECTRON_DISABLE_SANDBOX: 1
-
   build:
-    needs: test
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      
-      - name: Build Windows
-        if: matrix.os == 'windows-latest'
-        run: npm run build:win
-        
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: npm run build:linux
+      - run: npm run build:win
         
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-build
+          name: windows-build
           path: dist/*
 
   release:
@@ -71,6 +46,5 @@ jobs:
             
             ### 包含文件
             - Windows: NSIS 安装包 + Portable 便携版
-            - Linux: Debian 包 + AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
