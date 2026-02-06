@@ -11,6 +11,17 @@ const { z } = require("zod");
 const { config } = require("./config");
 const { createWindow } = require("./utils/window-utils");
 
+// 捕获未处理的异常，防止弹窗
+process.on('uncaughtException', (error) => {
+  log.error('[Uncaught Exception]', error);
+  console.error('[Uncaught Exception]', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  log.error('[Unhandled Rejection]', reason);
+  console.error('[Unhandled Rejection]', reason);
+});
+
 const transports = new Map();
 
 const args = process.argv.slice(2);

@@ -1,4 +1,7 @@
 const { setPort, setupTest, teardownTest, sendRequest } = require("./test-utils");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 describe("CDP Tools Action Test", () => {
   let winId;
@@ -11,6 +14,27 @@ describe("CDP Tools Action Test", () => {
   afterAll(async () => {
     await teardownTest(true);
   });
+
+  test("应该测试新的请求监控结构", async () => {
+    // 打开窗口
+    const openResponse = await sendRequest("tools/call", {
+      name: "open_window",
+      arguments: { 
+        url: "https://www.douyin.com/video/7594434780347813155",
+        options: { show: true, width: 1200, height: 800 }
+      },
+    });
+    expect(openResponse.result).toBeDefined();
+    const text = openResponse.result.content[0].text;
+    winId = parseInt(text.match(/\d+/)[0]);
+    expect(winId).toBeGreaterThan(0);
+
+    // 等待页面加载
+    console.log("等待10秒让页面加载...");
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    console.log("测试完成！");
+  }, 120000);
 
   test("应该打开抖音视频页面并滚动到底部", async () => {
     // 打开窗口（显示窗口）
