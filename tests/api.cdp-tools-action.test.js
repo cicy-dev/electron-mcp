@@ -237,4 +237,76 @@ describe("CDP Tools Action Test", () => {
     // 保持窗口打开30秒以便查看
     await new Promise((resolve) => setTimeout(resolve, 30000));
   }, 90000);
+
+  test("应该捕获网络请求", async () => {
+    // 打开窗口
+    if (!winId) {
+      const openResponse = await sendRequest("tools/call", {
+        name: "open_window",
+        arguments: { 
+          url: "https://www.douyin.com/video/7594434780347813155",
+          options: { show: true, width: 1200, height: 800 }
+        },
+      });
+      const text = openResponse.result.content[0].text;
+      winId = parseInt(text.match(/\d+/)[0]);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    
+    // 获取所有网络请求
+    const requestsResponse = await sendRequest("tools/call", {
+      name: "get_requests",
+      arguments: { win_id: winId },
+    });
+    const requests = JSON.parse(requestsResponse.result.content[0].text);
+    console.log(`Total network requests: ${requests.total}`);
+    
+    // 过滤 XHR 请求
+    const xhrResponse = await sendRequest("tools/call", {
+      name: "filter_requests",
+      arguments: { win_id: winId, type: "XHR" },
+    });
+    const xhrRequests = JSON.parse(xhrResponse.result.content[0].text);
+    console.log(`XHR requests: ${xhrRequests.total}`);
+    
+    // 过滤 Script 请求
+    const scriptResponse = await sendRequest("tools/call", {
+      name: "filter_requests",
+      arguments: { win_id: winId, type: "Script" },
+    });
+    const scriptRequests = JSON.parse(scriptResponse.result.content[0].text);
+    console.log(`Script requests: ${scriptRequests.total}`);
+    
+    // 显示前3个请求的详细信息
+    if (requests.data.length > 0) {
+      console.log("\n=== Sample Requests ===");
+      for (let i = 0; i < Math.min(3, requests.data.length); i++) {
+        const req = requests.data[i];
+        console.log(`\n${i + 1}. [${req.type}] ${req.method} ${req.url}`);
+        console.log(`   Request ID: ${req.requestId}`);
+        console.log(`   Domain: ${req.domain}`);
+        console.log(`   Index: ${req.index}`);
+        console.log(`   Timestamp: ${new Date(req.timestamp).toISOString()}`);
+        
+        // 获取请求详细信息
+        const detailResponse = await sendRequest("tools/call", {
+          name: "get_request_detail",
+          arguments: { win_id: winId, index: req.index },
+        });
+        const detail = JSON.parse(detailResponse.result.content[0].text);
+        console.log(`   Status: ${detail.status || 'pending'}`);
+        if (detail.requestHeaders) {
+          console.log(`   Request Headers: ${Object.keys(detail.requestHeaders).length} headers`);
+        }
+        if (detail.responseHeaders) {
+          console.log(`   Response Headers: ${Object.keys(detail.responseHeaders).length} headers`);
+        }
+        if (detail.responseBodySize) {
+          console.log(`   Response Size: ${detail.responseBodySize} bytes`);
+        }
+      }
+    }
+    
+    expect(requests.total).toBeGreaterThan(0);
+  }, 90000);
 });
