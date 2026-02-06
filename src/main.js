@@ -10,10 +10,15 @@ const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js"
 const { z } = require("zod");
 const { config } = require("./config");
 const { createWindow } = require("./utils/window-utils");
+const { createLogger, withTimeout, safeExecute } = require("./utils/logger");
 
+const logger = createLogger("Main");
 const transports = new Map();
 
+// 解析命令行参数
 const args = process.argv.slice(2);
+logger.debug("Command line args:", args.join(" "));
+
 let PORT = args.find((arg) => arg.startsWith("--port="))?.split("=")[1];
 if (!PORT) {
   const portIndex = args.indexOf("--port");
@@ -26,6 +31,7 @@ if (!PORT) {
 }
 PORT = parseInt(PORT) || 8101;
 config.port = PORT;
+logger.info(`Server port: ${PORT}`);
 
 let START_URL = args.find((arg) => arg.startsWith("--url="))?.split("=")[1];
 if (!START_URL) {
@@ -34,16 +40,27 @@ if (!START_URL) {
     START_URL = args[urlIndex + 1];
   }
 }
-
-const logsDir = path.join(electronApp.getPath("home"), "logs");
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+if (START_URL) {
+  logger.info(`Start URL: ${START_URL}`);
 }
+
+// 初始化日志目录
+const logsDir = path.join(electronApp.getPath("home"), "logs");
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+    logger.info(`Created logs directory: ${logsDir}`);
+  }
+} catch (error) {
+  logger.error("Failed to create logs directory", error);
+}
+
 config.logsDir = logsDir;
 config.logFilePath = path.join(logsDir, `electron-mcp-${config.port}.log`);
 
 log.transports.file.resolvePathFn = () => config.logFilePath;
-log.info(`[MCP] Server starting at ${new Date().toISOString()}`);
+logger.info(`Server starting at ${new Date().toISOString()}`);
+logger.info(`Log file: ${config.logFilePath}`);
 
 const app = express();
 const server = http.createServer(app);
@@ -53,101 +70,182 @@ app.use(
 );
 app.use(express.json({ limit: "50mb" }));
 
+// 错误处理中间件
+app.use((err, req, res, next) => {
+  logger.error("Express error", err);
+  res.status(500).json({ error: "Internal server error" });
+});
+
 const mcpServer = new McpServer({
   name: "electron-mcp",
   version: "1.0.0",
   description: "Electron MCP Server with browser automation tools",
 });
 
-function registerTool(title, description, schema, handler) {
-  if (schema && typeof schema === "object" && !schema._def) {
-    log.warn(`Tool "${title}" has invalid schema (not a Zod object):`, schema);
-    schema = z.object({});
-  }
+logger.info("MCP Server initialized");
 
-  mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s) => {
-    try {
-      return handler(s);
-    } catch (e) {
-      log.error("Error", title, e);
-      return {
-        content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
-        isError: true,
-      };
+function registerTool(title, description, schema, handler) {
+  try {
+    if (schema && typeof schema === "object" && !schema._def) {
+      logger.warn(`Tool "${title}" has invalid schema (not a Zod object)`);
+      schema = z.object({});
     }
-  });
+
+    mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s) => {
+      const startTime = Date.now();
+      logger.debug(`Tool "${title}" invoked with args:`, JSON.stringify(s).substring(0, 200));
+      
+      try {
+        const result = await withTimeout(
+          handler(s),
+          300000, // 5 minutes timeout
+          `Tool "${title}" execution timeout`
+        );
+        const duration = Date.now() - startTime;
+        logger.info(`Tool "${title}" completed in ${duration}ms`);
+        return result;
+      } catch (e) {
+        const duration = Date.now() - startTime;
+        logger.error(`Tool "${title}" failed after ${duration}ms`, e);
+        return {
+          content: [{ type: "text", text: `${title} error: ${e.message}` }],
+          isError: true,
+        };
+      }
+    });
+    
+    logger.debug(`Registered tool: ${title}`);
+  } catch (error) {
+    logger.error(`Failed to register tool "${title}"`, error);
+  }
 }
 
-require("./tools/ping")(registerTool);
-require("./tools/window-tools")(registerTool);
-require("./tools/exec-js")(registerTool);
+// 注册工具
+try {
+  require("./tools/ping")(registerTool);
+  require("./tools/window-tools")(registerTool);
+  require("./tools/exec-js")(registerTool);
+  logger.info("All tools registered successfully");
+} catch (error) {
+  logger.error("Failed to register tools", error);
+}
 
 function createTransport(res) {
-  const transport = new SSEServerTransport("/messages", res);
-  transports[transport.sessionId] = transport;
+  try {
+    const transport = new SSEServerTransport("/messages", res);
+    transports.set(transport.sessionId, transport);
+    logger.debug(`Created transport: ${transport.sessionId}`);
 
-  const originalSend = transport.send.bind(transport);
-  transport.send = async (message) => {
-    return originalSend(message);
-  };
+    const originalSend = transport.send.bind(transport);
+    transport.send = async (message) => {
+      try {
+        return await originalSend(message);
+      } catch (error) {
+        logger.error(`Transport send error for ${transport.sessionId}`, error);
+        throw error;
+      }
+    };
 
-  return transport;
+    return transport;
+  } catch (error) {
+    logger.error("Failed to create transport", error);
+    throw error;
+  }
 }
 
 app.get("/mcp", async (req, res) => {
+  const clientIp = req.ip || req.connection.remoteAddress;
+  logger.info(`SSE connection request from ${clientIp}`);
+  
   try {
     const transport = createTransport(res);
+    
     res.on("close", () => {
-      delete transports[transport.sessionId];
+      logger.info(`SSE connection closed: ${transport.sessionId}`);
+      transports.delete(transport.sessionId);
     });
+    
+    res.on("error", (error) => {
+      logger.error(`SSE connection error: ${transport.sessionId}`, error);
+      transports.delete(transport.sessionId);
+    });
+    
     await mcpServer.connect(transport);
-    log.info("[MCP] SSE connection established:", transport.sessionId, req.url);
+    logger.info(`SSE connection established: ${transport.sessionId}`);
   } catch (error) {
-    log.error("[MCP] SSE error:", error);
-    res.status(500).end();
+    logger.error("SSE connection failed", error);
+    if (!res.headersSent) {
+      res.status(500).end();
+    }
   }
 });
 
 app.post("/messages", async (req, res) => {
   const sessionId = req.query.sessionId;
-  const transport = transports[sessionId];
+  logger.debug(`Message received for session: ${sessionId}`);
+  
+  const transport = transports.get(sessionId);
 
   if (!transport) {
+    logger.warn(`No transport found for sessionId: ${sessionId}`);
     res.status(400).send("No transport found for sessionId");
     return;
   }
 
   try {
-    await transport.handlePostMessage(req, res, req.body);
+    await withTimeout(
+      transport.handlePostMessage(req, res, req.body),
+      60000, // 1 minute timeout
+      "Message handling timeout"
+    );
   } catch (error) {
-    log.error("[MCP] Error handling message:", error);
-    res.status(500).json({ error: error.message });
+    logger.error(`Error handling message for ${sessionId}`, error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
 if (process.platform === "linux") {
   process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
   electronApp.commandLine.appendSwitch("log-level", "3");
+  logger.debug("Linux platform detected, security warnings disabled");
 }
 
-electronApp.whenReady().then(() => {
-  log.info(`[MCP] Log file: ${config.logFilePath}`);
-  log.info(`[MCP] Server listening on http://localhost:${PORT}`);
-  log.info(`[MCP] SSE endpoint: http://localhost:${PORT}/mcp`);
+electronApp.whenReady().then(async () => {
+  logger.info(`Server listening on http://localhost:${PORT}`);
+  logger.info(`SSE endpoint: http://localhost:${PORT}/mcp`);
 
   if (START_URL) {
-    log.info(`[MCP] Opening window with URL: ${START_URL}`);
-    createWindow({ url: START_URL });
+    logger.info(`Opening initial window with URL: ${START_URL}`);
+    try {
+      await createWindow({ url: START_URL });
+      logger.info("Initial window created successfully");
+    } catch (error) {
+      logger.error("Failed to create initial window", error);
+    }
   }
 
-  server.listen(PORT).on("error", (err) => {
+  try {
+    server.listen(PORT);
+    logger.info(`HTTP server started on port ${PORT}`);
+  } catch (error) {
+    logger.error("Failed to start HTTP server", error);
+    electronApp.quit();
+  }
+  
+  server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
-      log.error(`[MCP] Port ${PORT} is already in use`);
+      logger.error(`Port ${PORT} is already in use`);
     } else {
-      log.error("[MCP] Server error:", err);
+      logger.error("Server error", err);
     }
     electronApp.quit();
   });
+}).catch((error) => {
+  logger.error("Electron app initialization failed", error);
+  process.exit(1);
+});
 });
 
 electronApp.on("window-all-closed", () => {
