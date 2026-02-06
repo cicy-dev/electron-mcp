@@ -10,6 +10,7 @@ const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js"
 const { z } = require("zod");
 const { config } = require("./config");
 const { createWindow } = require("./utils/window-utils");
+const { AuthManager } = require("./utils/auth");
 
 // 捕获未处理的异常，防止弹窗
 process.on('uncaughtException', (error) => {
@@ -99,13 +100,26 @@ log.debug = (...args) => originalDebug(...args, getCallerInfo());
 
 log.info(`[MCP] Server starting at ${new Date().toISOString()}`);
 
+// 初始化认证管理器
+const authManager = new AuthManager();
+
 const app = express();
 const server = http.createServer(app);
 
 app.use(
-  cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type"] })
+  cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"] })
 );
 app.use(express.json({ limit: "50mb" }));
+
+// 认证中间件
+function authMiddleware(req, res, next) {
+  if (!authManager.validateAuth(req)) {
+    log.warn("[MCP] Unauthorized access attempt:", req.url);
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+}
 
 const mcpServer = new McpServer({
   name: "electron-mcp",
@@ -149,7 +163,7 @@ function createTransport(res) {
   return transport;
 }
 
-app.get("/mcp", async (req, res) => {
+app.get("/mcp", authMiddleware, async (req, res) => {
   try {
     const transport = createTransport(res);
     res.on("close", () => {
@@ -163,7 +177,7 @@ app.get("/mcp", async (req, res) => {
   }
 });
 
-app.post("/messages", async (req, res) => {
+app.post("/messages", authMiddleware, async (req, res) => {
   const sessionId = req.query.sessionId;
   const transport = transports[sessionId];
 
