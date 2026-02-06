@@ -1,10 +1,9 @@
+const { app: electronApp } = require('electron');
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
-
-
 
 const app = express();
 const server = http.createServer(app);
@@ -36,7 +35,10 @@ function registerTool(title, description, schema, handler) {
   });
 }
 
+require('./tools/ping')({ registerTool });
 require('./tools/window-tools')({ registerTool });
+require('./tools/exec-js')({ registerTool });
+require('./tools/cdp-tools')({ registerTool });
 
 
 // const { registerCdpMouseTools } = require('./tools/cdp-mouse-tools');
@@ -104,4 +106,17 @@ app.post("/messages", async (req, res) => {
 server.listen(PORT, () => {
   console.log(`MCP HTTP Server running on http://localhost:${PORT}`);
   console.log(`SSE endpoint: http://localhost:${PORT}/mcp`);
+});
+
+// Electron 应用初始化
+electronApp.whenReady().then(() => {
+  console.log('[Electron] App ready');
+});
+
+electronApp.on('window-all-closed', () => {
+  // 不退出应用，保持 HTTP 服务器运行
+});
+
+electronApp.on('activate', () => {
+  // macOS 激活时不做任何操作
 });
