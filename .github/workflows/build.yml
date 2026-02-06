@@ -47,3 +47,30 @@ jobs:
         with:
           name: ${{ matrix.os }}-build
           path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          
+      - name: Create Alpha Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          prerelease: true
+          name: "Alpha Release ${{ github.ref_name }}"
+          body: |
+            ## Alpha Release
+            
+            自动构建的测试版本
+            
+            ### 包含文件
+            - Windows: NSIS 安装包 + Portable 便携版
+            - Linux: Debian 包 + AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
