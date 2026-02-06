@@ -1,17 +1,65 @@
 # Electron MCP Server
 
-这是一个基于 Electron 的 MCP server，提供窗口管理、调试器控制和网页操作功能。
+基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。
+
+## 功能特性
+
+### 窗口管理
+- `get_windows` - 获取所有窗口列表和详细信息
+- `get_window_info` - 获取指定窗口详细信息
+- `open_window` - 打开新窗口
+- `close_window` - 关闭窗口
+- `load_url` - 加载 URL
+- `get_title` - 获取窗口标题
+- `control_electron_BrowserWindow` - 直接控制 BrowserWindow
+- `control_electron_WebContents` - 直接控制 WebContents
+
+### CDP 鼠标操作
+- `cdp_click` - 点击指定坐标
+- `cdp_dblclick` - 双击指定坐标
+
+### CDP 键盘操作
+- `cdp_press_key` - 按下任意按键
+- `cdp_press_enter` - 按下回车键
+- `cdp_press_backspace` - 按下退格键
+- `cdp_press_copy` - 复制 (Ctrl+C)
+- `cdp_press_paste` - 粘贴 (Ctrl+V)
+- `cdp_press_selectall` - 全选 (Ctrl+A)
+- `cdp_press_cut` - 剪切 (Ctrl+X)
+- `cdp_type_text` - 输入文本
+
+### CDP 页面操作
+- `cdp_scroll` - 滚动页面
+- `cdp_sendcmd` - 发送任意 CDP 命令
+
+### JS 执行与注入
+- `exec_js` - 执行 JavaScript 代码
+- `inject_auto_run_when_dom_ready_js` - 注入自动执行的 JS
+- `inject_auto_run_when_dom_ready_js_read` - 读取已注入的 JS
+- `get_element_client_bound` - 获取元素位置和尺寸
+- `show_float_div` - 显示可拖拽调试浮动框
+- `del_float_div` - 删除浮动框
+
+### 网络监控
+- `get_console_logs` - 获取控制台日志
+- `get_requests` - 获取网络请求记录
+- `filter_requests` - 过滤网络请求
+- `get_request_detail` - 获取请求详细信息
+
+### 截图与下载
+- `webpage_screenshot_and_to_clipboard` - 截图并复制到剪贴板
+- `session_download_url` - 下载文件到指定路径
+
+### 系统工具
+- `ping` - 测试连接
 
 ## 快速开始
 
 ### 安装依赖
 
 ```bash
-# 克隆项目
 git clone git@github.com:cicy-dev/electron-mcp.git
 cd electron-mcp
-
-# 安装依赖
 npm install
 ```
 
@@ -19,26 +67,10 @@ npm install
 
 ```bash
 # 启动 MCP 服务器 (默认端口 8101)
-# 自动生成认证令牌并保存到 ~/electron-mcp-token.txt
 npm start
 
-# 或指定端口启动
+# 指定端口启动
 npm start -- --port=8102
-
-pkill electron
-export URL=https://www.douyin.com/video/7594434780347813155 
-export TEST=true 
-export DISPLAY=:1
-npx electron src/main.js 
-
-----
-pkill electron
-export URL=https://aistudio.google.com/
-export TEST=true 
-export DISPLAY=:1
-npx electron src/main.js  -- --port=8101
-
-
 ```
 
 ### 运行测试
@@ -47,60 +79,22 @@ npx electron src/main.js  -- --port=8101
 # 运行完整测试套件
 npm test
 
-# 运行单个测试
-npm test -- --testNamePattern="test name"
+# 运行指定测试
+npm test -- api.cdp-tools.test.js
 ```
 
-## 在 LLM IDE 中使用
-
-### 1. Kiro CLI
-
-**方法一：命令行添加（推荐）**
+## 在 Kiro CLI 中使用
 
 ```bash
-# 添加 MCP 服务器到全局配置
+# 添加 MCP 服务器
 kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
-
-# 手动添加认证头到配置文件
-# 编辑 ~/.kiro/settings/mcp.json 添加 headers
 ```
 
-**方法二：手动配置**
-
-在 `~/.kiro/settings/mcp.json` 中添加：
+或手动配置 `~/.kiro/settings/mcp.json`：
 
 ```json
 {
   "mcpServers": {
-    "electron-mcp": {
-      "url": "http://localhost:8101/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN_HERE"
-      }
-    }
-  }
-}
-```
-
-启动 Kiro CLI 后即可使用所有 MCP 工具。查看可用工具：`/mcp`
-
-
-
-### 4. Open WebUI
-
-在 Open WebUI 中添加 MCP 服务器：
-
-1. 进入设置 → 连接
-2. 添加 MCP 服务器：`http://localhost:8101/mcp`
-3. 保存配置
-
-### 5. Cursor IDE
-
-在 Cursor 的设置中添加：
-
-```json
-{
-  "mcp.servers": {
     "electron-mcp": {
       "url": "http://localhost:8101/mcp"
     }
@@ -108,185 +102,36 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 }
 ```
 
-### 6. 通用 HTTP 客户端
-
-任何支持 HTTP 的客户端都可以直接调用：
-
-```bash
-# 获取工具列表
-curl http://localhost:8101/mcp
-
-# 调用工具
-
-curl -X POST http://localhost:8101/mcp?sessionId=test \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
-  -d '{
-  "method": "tools/list",
-  "params": {
-  },
-  "jsonrpc": "2.0",
-  "id": 0
-}'
-
-# 使用认证令牌
-curl -X POST http://localhost:8101/mcp?sessionId=test \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
-  -d '{
-  "method": "tools/call",
-  "params": {
-    "name": "get_windows",
-    "arguments": {}
-  },
-  "jsonrpc": "2.0",
-  "id": 5
-}'
-
-# MCP 端点
-curl http://localhost:8101/mcp
-```
-
-### 3. Continue.dev
-
-在 Continue 配置文件 (`~/.continue/config.json`) 中添加：
-
-```json
-{
-  "mcpServers": [
-    {
-      "name": "electron-mcp",
-      "url": "http://localhost:8101"
-    }
-  ]
-}
-```
-
-### 4. Open WebUI
-
-在 Open WebUI 中添加 MCP 服务器：
-
-1. 进入设置 → 连接
-2. 添加 MCP 服务器：`http://localhost:8101`
-3. 保存配置
-
-### 5. Cursor IDE
-
-在 Cursor 的设置中添加：
-
-```json
-{
-  "mcp.servers": {
-    "electron-mcp": {
-      "url": "http://localhost:8101"
-    }
-  }
-}
-```
-
-### 6. 通用 HTTP 客户端
-
-任何支持 HTTP 的客户端都可以直接调用：
-
-```bash
-# 获取工具列表
-curl http://localhost:8101/tools/list
-
-# 调用工具
-curl -X POST http://localhost:8101/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "get_windows",
-    "arguments": {}
-  }'
-```
-
-### 3. 其他 MCP 客户端
-
-任何支持 MCP 协议的客户端都可以通过 HTTP 连接使用：
-
-- **HTTP 端点**: `http://localhost:8101`
-- **MCP 端点**: `http://localhost:8101/mcp`
-- **SSE 连接**: `http://localhost:8101/sse`
-- **工具列表**: `http://localhost:8101/tools/list`
-
-## 功能
-
-### 窗口管理
-- `get_windows`: 获取所有窗口列表和详细信息
-- `get_title`: 获取窗口标题
-- `open_window`: 打开新窗口
-- `close_window`: 关闭指定窗口
-- `load_url`: 在窗口中加载URL
-
-### 代码执行
-- `invoke_window`: 在窗口上下文中执行代码
-- `invoke_window_webContents`: 在 webContents 上下文中执行代码
-- `invoke_window_webContents_debugger_cdp`: 使用 Chrome DevTools Protocol 调试器
-
-### CDP 鼠标操作
-- `cdp_click`: 使用 CDP 点击页面指定坐标
-- `cdp_double_click`: 使用 CDP 双击页面指定坐标
-
-### CDP 键盘操作
-- `cdp_press_key`: 使用 CDP 按下指定按键
-- `cdp_press_key_enter`: 使用 CDP 按下回车键
-- `cdp_press_key_esc`: 使用 CDP 按下ESC键
-- `cdp_press_key_copy`: 使用 CDP 执行复制操作 (Ctrl+C)
-- `cdp_press_key_paste`: 使用 CDP 执行粘贴操作 (Ctrl+V)
-- `cdp_type_text`: 使用 CDP 输入文本
-
-### CDP 页面操作
-- `cdp_scroll`: 使用 CDP 滚动页面
-- `cdp_find_element`: 使用 CDP 查找页面元素
-- `cdp_get_page_title`: 使用 CDP 获取页面标题
-- `cdp_get_page_url`: 使用 CDP 获取当前页面URL
-- `cdp_execute_script`: 使用 CDP 执行JavaScript代码
-
-### 截图和快照
-- `webpage_screenshot_and_to_clipboard`: 捕获页面截屏并复制到剪贴板
-
-### 系统工具
-- `ping`: 测试连接
-
 ## 使用示例
 
 ### 窗口管理
 ```javascript
 // 获取所有窗口
-{
-  "name": "get_windows",
-  "arguments": {}
-}
+{ "name": "get_windows", "arguments": {} }
 
 // 打开新窗口
-{
-  "name": "open_window",
-  "arguments": {
-    "url": "https://www.google.com"
-  }
-}
+{ "name": "open_window", "arguments": { "url": "https://www.google.com" } }
 ```
 
-### 代码执行
+### CDP 操作
 ```javascript
-// 在 webContents 中执行代码
-{
-  "name": "invoke_window_webContents",
-  "arguments": {
-    "win_id": 1,
-    "code": "return webContents.getURL()"
-  }
-}
+// 点击页面
+{ "name": "cdp_click", "arguments": { "win_id": 1, "x": 100, "y": 100 } }
 
-// 使用调试器 CDP
-{
-  "name": "invoke_window_webContents_debugger_cdp",
-  "arguments": {
-    "win_id": 1,
-    "code": "debuggerObj.attach('1.3'); return await debuggerObj.sendCommand('Runtime.evaluate', { expression: '1 + 1' })"
-  }
-}
+// 输入文本
+{ "name": "cdp_type_text", "arguments": { "win_id": 1, "text": "Hello" } }
+
+// 滚动页面
+{ "name": "cdp_scroll", "arguments": { "win_id": 1, "y": 100 } }
+```
+
+### JS 执行
+```javascript
+// 执行 JS 代码
+{ "name": "exec_js", "arguments": { "win_id": 1, "code": "document.title" } }
+
+// 获取元素位置
+{ "name": "get_element_client_bound", "arguments": { "win_id": 1, "selector": "button" } }
 ```
 
 ## 安装要求
@@ -353,32 +198,19 @@ DEBUG=electron-mcp:* npm start
 
 项目包含完整的测试套件，覆盖所有 MCP 工具：
 
-- ✅ **33 个测试用例全部通过**
-- ✅ 窗口管理功能测试
-- ✅ 代码执行功能测试  
-- ✅ 调试器 CDP 功能测试
-- ✅ **13 个 CDP 工具完整测试覆盖**
-- ✅ 错误处理测试
-
-### 测试覆盖范围
-- 基础连接和工具列表
-- 窗口管理 (打开、关闭、截图等)
-- 代码执行 (webContents、debugger)
-- CDP 鼠标操作 (点击、双击)
-- CDP 键盘操作 (按键、输入文本)
-- CDP 页面操作 (滚动、查找元素、执行脚本)
-- 参数验证和错误处理
+- ✅ **CDP 工具测试**: 12 个测试全部通过
+- ✅ **JS 执行工具测试**: 11 个测试全部通过
+- ✅ **窗口管理测试**: 完整覆盖
+- ✅ **网络监控测试**: 完整覆盖
 
 运行测试：
 ```bash
 # 运行完整测试套件
 npm test
 
-# 运行 CDP 工具测试
-npm test -- --testNamePattern="CDP 工具测试"
-
-# 运行单个测试
-npm test -- --testNamePattern="cdp_click"
+# 运行指定测试文件
+npm test -- api.cdp-tools.test.js
+npm test -- api.exec-js.test.js
 ```
 
 ## 开发
@@ -386,25 +218,25 @@ npm test -- --testNamePattern="cdp_click"
 ### 项目结构
 ```
 electron-mcp/
-├── main.js              # 主服务器文件
-├── start-mcp.js         # 启动脚本
-├── package.json         # 项目配置
-├── tests/
-│   └── api.test.js      # API 测试
-└── README.md           # 项目文档
+├── src/
+│   ├── main.js              # 主服务器
+│   ├── tools/               # 工具模块
+│   │   ├── window-tools.js  # 窗口管理
+│   │   ├── cdp-tools.js     # CDP 操作
+│   │   ├── exec-js.js       # JS 执行
+│   │   └── ping.js          # 连接测试
+│   └── utils/               # 工具函数
+│       ├── cdp-utils.js     # CDP 封装
+│       ├── window-monitor.js # 窗口监控
+│       └── snapshot-utils.js # 截图工具
+├── tests/                   # 测试文件
+└── start-mcp.js            # 启动脚本
 ```
 
 ### 添加新工具
-1. 在 `main.js` 中使用 `registerTool()` 注册新工具
-2. 添加相应的测试用例
-3. 更新文档
-
-## 注意事项
-
-- 调试器工具中使用 `debuggerObj` 变量访问 debugger 对象
-- 支持 async/await 语法
-- 所有代码执行都在安全的沙箱环境中
-- 测试环境会自动启动 Electron 进程
+1. 在对应的 tools 文件中使用 `server.registerTool()` 注册
+2. 在 tests 目录添加测试用例
+3. 更新 README.md
 
 ## 许可证
 
