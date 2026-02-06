@@ -24,6 +24,8 @@ jobs:
         run: |
           if [ "${{ github.ref_type }}" == "branch" ]; then
             mv "dist/Electron MCP Setup 1.0.0.exe" "dist/Electron.MCP.Setup.alpha.exe"
+            # 删除其他文件，只保留 exe
+            find dist -type f ! -name "*.exe" -delete
           fi
         
       - name: Upload artifacts
