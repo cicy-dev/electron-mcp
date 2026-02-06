@@ -47,4 +47,4 @@ jobs:
             ### 包含文件
             - Windows: NSIS 安装包 + Portable 便携版
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
