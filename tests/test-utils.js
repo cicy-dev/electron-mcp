@@ -10,13 +10,26 @@ let PORT = 9843;
 let baseURL = `http://localhost:${PORT}`;
 let initUrl = "http://www.google.com";
 
-const LOG_FILE = path.join(os.homedir(), "logs", "test-utils.log");
+const LOG_DIR = path.join(os.homedir(), "logs");
+const LOG_FILE = path.join(LOG_DIR, "test-utils.log");
+
+// 确保日志目录存在
+if (!fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+}
 
 function log(level, message) {
   const now = new Date();
   const timestamp = now.toISOString().replace("T", " ").substring(0, 23);
   const line = `[${timestamp}] [${level}] - ${message}\n`;
-  fs.appendFileSync(LOG_FILE, line);
+  try {
+    fs.appendFileSync(LOG_FILE, line);
+  } catch (err) {
+    // 在 CI 环境中忽略日志写入错误
+    if (process.env.CI) {
+      console.log(`[${level}] ${message}`);
+    }
+  }
 }
 
 function enableDebug(enabled = true) {
