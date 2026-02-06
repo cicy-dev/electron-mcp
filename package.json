@@ -10,9 +10,9 @@
     "test": "jest --forceExit --testTimeout=30000 --runInBand",
     "test:all": "jest --forceExit --testTimeout=30000",
     "test:ls": "node test-ls.js",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "build": "electron-builder --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never"
   },
   "build": {
     "appId": "com.electron.mcp",
