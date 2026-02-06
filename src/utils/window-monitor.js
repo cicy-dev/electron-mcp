@@ -57,13 +57,16 @@ function initWindowMonitoring(win) {
           logs.push({
             index: ++counters.log,
             timestamp: Date.now(),
-        level: ["verbose", "info", "warning", "error"][level] || "log",
-        message,
-        line,
-        source: sourceId,
-      });
-    }
-  });
+            level: ["verbose", "info", "warning", "error"][level] || "log",
+            message,
+            line,
+            source: sourceId,
+          });
+        }
+      } catch (error) {
+        logger.error(`Failed to log console message for window ${winId}`, error);
+      }
+    });
 
   // 监听网络请求
   win.webContents.debugger.on("message", async (event, method, params) => {
@@ -230,17 +233,26 @@ function initWindowMonitoring(win) {
 
   // 窗口关闭时清理
   win.on("closed", () => {
-    // 清理临时文件
-    const tmpDir = path.join(os.tmpdir(), "electron-mcp", `win-${winId}`);
-    if (fs.existsSync(tmpDir)) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
+    try {
+      // 清理临时文件
+      const tmpDir = path.join(os.tmpdir(), "electron-mcp", `win-${winId}`);
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
 
-    windowLogs.delete(winId);
-    windowRequests.delete(winId);
-    windowRequestDetails.delete(winId);
-    windowIndexCounters.delete(winId);
+      windowLogs.delete(winId);
+      windowRequests.delete(winId);
+      windowRequestDetails.delete(winId);
+      windowIndexCounters.delete(winId);
+      logger.info(`Cleaned up monitoring data for window ${winId}`);
+    } catch (error) {
+      logger.error(`Failed to cleanup window ${winId}`, error);
+    }
   });
+  
+  } catch (error) {
+    logger.error(`Failed to initialize monitoring for window ${winId}`, error);
+  }
 }
 
 function getConsoleLogs(winId) {

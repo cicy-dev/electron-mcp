@@ -242,10 +242,10 @@ electronApp.whenReady().then(async () => {
     }
     electronApp.quit();
   });
-}).catch((error) => {
+})
+.catch((error) => {
   logger.error("Electron app initialization failed", error);
   process.exit(1);
-});
 });
 
 electronApp.on("window-all-closed", () => {
