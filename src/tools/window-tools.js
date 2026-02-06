@@ -5,6 +5,9 @@ const {
   getConsoleLogs,
   getRequests,
   getRequestDetail,
+  getBeforeSendRequests,
+  getRequestDetailByUrl,
+  clearRequests,
 } = require("../utils/window-monitor");
 const { captureSnapshot } = require("../utils/snapshot-utils");
 const { createWindow, getWindowInfo } = require("../utils/window-utils");
@@ -243,23 +246,43 @@ function registerTools(registerTool) {
 
   registerTool(
     "get_requests",
-    "获取窗口的网络请求记录。返回自窗口创建或上次重载以来的所有网络请求，包括 URL、方法、类型等信息。支持分页查询。",
+    "获取窗口的网络请求记录。返回所有请求的详细信息（包含文件路径）。支持 URL 过滤和分页。",
     z.object({
       win_id: z.number().describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
       page_size: z.number().optional().default(50).describe("每页数量"),
+      filter: z.string().optional().describe("URL 过滤关键词（支持正则表达式）"),
     }),
-    async ({ win_id, page, page_size }) => {
+    async ({ win_id, page, page_size, filter }) => {
       try {
-        const requests = getRequests(win_id);
+        const allRequests = getLoadingFinishedRequests(win_id);
+        let entries = Array.from(allRequests.entries()).map(([url, data]) => ({
+          url,
+          requestCount: data.requests?.length || 0,
+          responseCount: data.responses?.length || 0,
+          requests: data.requests || [],
+          responses: data.responses || []
+        }));
+        
+        // 应用过滤
+        if (filter) {
+          try {
+            const regex = new RegExp(filter, 'i');
+            entries = entries.filter(entry => regex.test(entry.url));
+          } catch (e) {
+            entries = entries.filter(entry => entry.url.includes(filter));
+          }
+        }
+        
         const start = (page - 1) * page_size;
         const end = start + page_size;
-        const paginated = requests.slice(start, end);
+        const paginated = entries.slice(start, end);
+        
         const result = {
-          total: requests.length,
+          total: entries.length,
           page: page,
           page_size: page_size,
-          total_pages: requests.length > 0 ? Math.ceil(requests.length / page_size) : 0,
+          total_pages: entries.length > 0 ? Math.ceil(entries.length / page_size) : 0,
           data: paginated,
         };
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -667,6 +690,93 @@ function registerTools(registerTool) {
           content: [{ type: "text", text: `Error: ${error.message}` }],
           isError: true,
         };
+      }
+    }
+  );
+
+  registerTool(
+    "get_request_urls",
+    "获取窗口的所有请求 URL 列表（队列）。支持 URL 过滤。",
+    z.object({
+      win_id: z.number().describe("窗口 ID"),
+      page: z.number().optional().default(1).describe("页码，从1开始"),
+      page_size: z.number().optional().default(100).describe("每页数量"),
+      filter: z.string().optional().describe("URL 过滤关键词（支持正则表达式）"),
+    }),
+    async ({ win_id, page, page_size, filter }) => {
+      try {
+        let urls = getBeforeSendRequests(win_id);
+        
+        // 应用过滤
+        if (filter) {
+          try {
+            const regex = new RegExp(filter, 'i');
+            urls = urls.filter(url => regex.test(url));
+          } catch (e) {
+            // 如果不是有效的正则，使用简单字符串匹配
+            urls = urls.filter(url => url.includes(filter));
+          }
+        }
+        
+        const start = (page - 1) * page_size;
+        const end = start + page_size;
+        const paginated = urls.slice(start, end);
+        const result = {
+          total: urls.length,
+          page: page,
+          page_size: page_size,
+          total_pages: urls.length > 0 ? Math.ceil(urls.length / page_size) : 0,
+          urls: paginated,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  registerTool(
+    "get_request_detail_by_url",
+    "根据 URL 获取请求的完整详情。返回该 URL 的所有请求和响应的文件路径列表。",
+    z.object({
+      win_id: z.number().describe("窗口 ID"),
+      url: z.string().describe("请求的完整 URL"),
+    }),
+    async ({ win_id, url }) => {
+      try {
+        const detail = getRequestDetailByUrl(win_id, url);
+        if (!detail) {
+          return { content: [{ type: "text", text: `Request not found for URL: ${url}` }], isError: true };
+        }
+        
+        // 返回文件路径列表，用户可以自己读取文件
+        const result = {
+          url,
+          requestCount: detail.requests?.length || 0,
+          responseCount: detail.responses?.length || 0,
+          requests: detail.requests || [],
+          responses: detail.responses || []
+        };
+        
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+      }
+    }
+  );
+
+  registerTool(
+    "clear_requests",
+    "清空指定窗口的所有请求记录（仅清空内存，不删除已保存的文件）。",
+    z.object({
+      win_id: z.number().describe("窗口 ID"),
+    }),
+    async ({ win_id }) => {
+      try {
+        clearRequests(win_id);
+        return { content: [{ type: "text", text: `Cleared all requests for window ${win_id}` }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
     }
   );

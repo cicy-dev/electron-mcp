@@ -1,4 +1,7 @@
 const { setPort, setupTest, teardownTest, sendRequest } = require("./test-utils");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 describe("CDP Tools Action Test", () => {
   let winId;
@@ -11,6 +14,27 @@ describe("CDP Tools Action Test", () => {
   afterAll(async () => {
     await teardownTest(true);
   });
+
+  test("应该测试新的请求监控结构", async () => {
+    // 打开窗口
+    const openResponse = await sendRequest("tools/call", {
+      name: "open_window",
+      arguments: { 
+        url: "https://www.douyin.com/video/7594434780347813155",
+        options: { show: true, width: 1200, height: 800 }
+      },
+    });
+    expect(openResponse.result).toBeDefined();
+    const text = openResponse.result.content[0].text;
+    winId = parseInt(text.match(/\d+/)[0]);
+    expect(winId).toBeGreaterThan(0);
+
+    // 等待页面加载
+    console.log("等待10秒让页面加载...");
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    console.log("测试完成！");
+  }, 120000);
 
   test("应该打开抖音视频页面并滚动到底部", async () => {
     // 打开窗口（显示窗口）
@@ -237,4 +261,197 @@ describe("CDP Tools Action Test", () => {
     // 保持窗口打开30秒以便查看
     await new Promise((resolve) => setTimeout(resolve, 30000));
   }, 90000);
+
+  test("应该捕获和过滤网络请求", async () => {
+    // 打开窗口
+    if (!winId) {
+      const openResponse = await sendRequest("tools/call", {
+        name: "open_window",
+        arguments: { 
+          url: "https://www.douyin.com/video/7594434780347813155",
+          options: { show: true, width: 1200, height: 800 }
+        },
+      });
+      const text = openResponse.result.content[0].text;
+      winId = parseInt(text.match(/\d+/)[0]);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    
+    // 获取所有网络请求
+    const requestsResponse = await sendRequest("tools/call", {
+      name: "get_requests",
+      arguments: { win_id: winId },
+    });
+    const requests = JSON.parse(requestsResponse.result.content[0].text);
+    console.log(`\nTotal network requests: ${requests.total}`);
+    
+    // 过滤 XHR 请求
+    const xhrResponse = await sendRequest("tools/call", {
+      name: "filter_requests",
+      arguments: { win_id: winId, doc_type: "json" },
+    });
+    const xhrRequests = JSON.parse(xhrResponse.result.content[0].text);
+    console.log(`JSON requests: ${xhrRequests.total}`);
+    
+    // 过滤包含 slardar 的请求
+    const slardarResponse = await sendRequest("tools/call", {
+      name: "filter_requests",
+      arguments: { win_id: winId, keyword: "slardar" },
+    });
+    const slardarRequests = JSON.parse(slardarResponse.result.content[0].text);
+    console.log(`\nRequests containing 'slardar': ${slardarRequests.total}`);
+    
+    // 打印前3个 slardar 请求的详细信息
+    for (let i = 0; i < Math.min(3, slardarRequests.data.length); i++) {
+      const req = slardarRequests.data[i];
+      console.log(`\n${i + 1}. [${req.type}] ${req.method}`);
+      console.log(`   URL: ${req.url}`);
+      console.log(`   Domain: ${req.domain}`);
+      
+      // 获取请求详细信息
+      const detailResponse = await sendRequest("tools/call", {
+        name: "get_request_detail",
+        arguments: { win_id: winId, index: req.index },
+      });
+      const detail = JSON.parse(detailResponse.result.content[0].text);
+      console.log(`   Status: ${detail.status || 'pending'}`);
+      if (detail.responseBodySize) {
+        console.log(`   Response Size: ${detail.responseBodySize} bytes`);
+      }
+    }
+    
+    expect(requests.total).toBeGreaterThan(0);
+    expect(slardarRequests.total).toBeGreaterThan(0);
+  }, 90000);
+
+  test("应该打开窗口并最大化显示DevTools", async () => {
+    // 打开新窗口（带 DevTools）
+    const openResponse = await sendRequest("tools/call", {
+      name: "open_window",
+      arguments: { 
+        url: "https://www.douyin.com/video/7594434780347813155",
+        options: { 
+          show: true, 
+          width: 1920, 
+          height: 1080,
+          webPreferences: {
+            devTools: true
+          }
+        }
+      },
+    });
+    const text = openResponse.result.content[0].text;
+    const newWinId = parseInt(text.match(/\d+/)[0]);
+    console.log(`Opened window: ${newWinId}`);
+    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+    // 最大化窗口
+    await sendRequest("tools/call", {
+      name: "control_electron_BrowserWindow",
+      arguments: { 
+        win_id: newWinId,
+        method: "maximize",
+        args: []
+      },
+    });
+    console.log("Window maximized");
+    
+    // 打开 DevTools
+    const devToolsResponse = await sendRequest("tools/call", {
+      name: "control_electron_WebContents",
+      arguments: { 
+        win_id: newWinId,
+        code: "webContents.openDevTools()"
+      },
+    });
+    console.log("DevTools opened:", devToolsResponse.result.content[0].text);
+    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    console.log("\nWindow will stay open. Check VNC DISPLAY=:1");
+    
+    // 保持窗口打开
+    await teardownTest(true);
+  }, 90000);
+
+  test("应该捕获包含__vid的视频流请求", async () => {
+    // 打开新窗口
+    const openResponse = await sendRequest("tools/call", {
+      name: "open_window",
+      arguments: { 
+        url: "https://www.douyin.com/video/7594434780347813155",
+        options: { show: true, width: 1200, height: 800 }
+      },
+    });
+    const text = openResponse.result.content[0].text;
+    const newWinId = parseInt(text.match(/\d+/)[0]);
+    console.log(`Opened window: ${newWinId}`);
+    
+    // 等待视频加载（视频流请求会在这时触发）
+    console.log("Waiting for video to load (30 seconds)...");
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+    
+    // 获取所有请求
+    const allResponse = await sendRequest("tools/call", {
+      name: "get_requests",
+      arguments: { win_id: newWinId, page_size: 1000 },
+    });
+    const allRequests = JSON.parse(allResponse.result.content[0].text);
+    console.log(`\nTotal requests: ${allRequests.total}`);
+    
+    // 客户端过滤包含 __vid 的请求
+    const vidRequests = allRequests.data.filter(req => req.url.includes('__vid'));
+    console.log(`Requests containing '__vid': ${vidRequests.length}\n`);
+    
+    // 打印前50个请求的 URL 看看
+    console.log("=== First 50 requests ===");
+    allRequests.data.slice(0, 50).forEach((req, idx) => {
+      const hasVid = req.url.includes('__vid') || req.url.includes('video');
+      const marker = hasVid ? ' <<<' : '';
+      console.log(`${idx + 1}. [${req.type}] ${req.url.substring(0, 120)}${marker}`);
+    });
+    console.log("\n");
+    
+    // 打印所有包含 __vid 的请求
+    vidRequests.forEach((req, idx) => {
+      console.log(`\n${idx + 1}. [${req.type}] ${req.method}`);
+      console.log(`   Index: ${req.index}`);
+      console.log(`   RequestId: ${req.requestId}`);
+      console.log(`   Timestamp: ${new Date(req.timestamp).toISOString()}`);
+      console.log(`   URL: ${req.url}`);
+      console.log(`   Domain: ${req.domain}`);
+    });
+    
+    // 保存到文件
+    if (vidRequests.length > 0) {
+      const fs = require('fs');
+      fs.writeFileSync('/home/w3c_offical/vid_requests.json', JSON.stringify(vidRequests, null, 2));
+      console.log('\nSaved __vid requests to ~/vid_requests.json');
+      console.log(`Total: ${vidRequests.length} requests`);
+      
+      // 检查是否有重复的 requestId
+      const requestIds = vidRequests.map(r => r.requestId);
+      const uniqueIds = [...new Set(requestIds)];
+      console.log(`Unique requestIds: ${uniqueIds.length}`);
+      if (uniqueIds.length < requestIds.length) {
+        console.log('⚠️  Found duplicate requestIds!');
+      }
+      
+      // 下载第一个视频
+      const firstReq = vidRequests[0];
+      console.log(`\nDownloading video from: ${firstReq.url.substring(0, 100)}...`);
+      
+      const downloadResponse = await sendRequest("tools/call", {
+        name: "session_download_url",
+        arguments: { 
+          win_id: newWinId,
+          url: firstReq.url,
+          save_path: "/home/w3c_offical/Desktop/douyin_video.mp4"
+        },
+      });
+      console.log("Download result:", downloadResponse.result.content[0].text);
+    }
+    
+    expect(vidRequests.length).toBeGreaterThan(0);
+  }, 120000);
 });
