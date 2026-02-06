@@ -2,6 +2,8 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - alpha
     tags:
       - 'v*'
   workflow_dispatch:
@@ -17,11 +19,18 @@ jobs:
       - run: npm ci
       - run: npm run build:win
         
+      - name: Rename installer
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" == "branch" ]; then
+            mv "dist/Electron MCP Setup 1.0.0.exe" "dist/Electron.MCP.Setup.alpha.exe"
+          fi
+        
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: dist/*
+          path: dist/*.exe
 
   release:
     needs: build
@@ -29,22 +38,46 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      
+      - name: Delete existing alpha release
+        if: github.ref_type == 'branch'
+        run: |
+          gh release delete alpha -y || true
+          git push origin :refs/tags/alpha || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           
       - name: Create Alpha Release
+        if: github.ref_type == 'branch'
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          tag_name: alpha
+          files: artifacts/**/*.exe
           prerelease: true
-          name: "Alpha Release ${{ github.ref_name }}"
+          name: "Alpha Release (Latest)"
           body: |
             ## Alpha Release
             
-            自动构建的测试版本
+            最新的 alpha 分支自动构建
             
-            ### 包含文件
-            - Windows: NSIS 安装包 + Portable 便携版
+            **文件:** Electron.MCP.Setup.alpha.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          
+      - name: Create Tag Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*.exe
+          prerelease: true
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            ## Release ${{ github.ref_name }}
+            
+            标签版本构建
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
