@@ -1,4 +1,25 @@
 const log = require("electron-log");
+const path = require("path");
+
+/**
+ * 获取调用者信息（文件名:方法名:行号）
+ */
+function getCallerInfo() {
+  const err = new Error();
+  const stack = err.stack.split("\n");
+  // stack[3] 是实际调用日志的位置
+  const callerLine = stack[3] || "";
+  const match = callerLine.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):\d+\)?$/);
+  
+  if (match) {
+    const method = match[1] || "anonymous";
+    const fullPath = match[2];
+    const filename = path.basename(fullPath);
+    const lineNum = match[3];
+    return `${filename}:${method}:${lineNum}`;
+  }
+  return "";
+}
 
 /**
  * 统一日志工具
@@ -10,23 +31,27 @@ class Logger {
   }
 
   info(message, ...args) {
-    log.info(`[${this.module}] ${message}`, ...args);
+    const caller = getCallerInfo();
+    log.info(`[${this.module}] ${caller} ${message}`, ...args);
   }
 
   debug(message, ...args) {
-    log.debug(`[${this.module}] ${message}`, ...args);
+    const caller = getCallerInfo();
+    log.debug(`[${this.module}] ${caller} ${message}`, ...args);
   }
 
   error(message, error, ...args) {
+    const caller = getCallerInfo();
     if (error instanceof Error) {
-      log.error(`[${this.module}] ${message}`, error.message, error.stack, ...args);
+      log.error(`[${this.module}] ${caller} ${message}`, error.message, error.stack, ...args);
     } else {
-      log.error(`[${this.module}] ${message}`, error, ...args);
+      log.error(`[${this.module}] ${caller} ${message}`, error, ...args);
     }
   }
 
   warn(message, ...args) {
-    log.warn(`[${this.module}] ${message}`, ...args);
+    const caller = getCallerInfo();
+    log.warn(`[${this.module}] ${caller} ${message}`, ...args);
   }
 }
 
