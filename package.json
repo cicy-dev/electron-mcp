@@ -9,8 +9,28 @@
     "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
     "test": "jest --forceExit --testTimeout=30000 --runInBand",
     "test:all": "jest --forceExit --testTimeout=30000",
-    "test:ls": "node test-ls.js"
-    
+    "test:ls": "node test-ls.js",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.electron.mcp",
+    "productName": "Electron MCP",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["deb", "AppImage"],
+      "category": "Development"
+    }
   },
   "keywords": [
     "electron",
@@ -34,6 +54,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.0",
+    "electron-builder": "^26.7.0",
     "jest": "^29.7.0",
     "prettier": "^3.8.1",
     "supertest": "^6.3.3"
