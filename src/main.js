@@ -43,6 +43,49 @@ config.logsDir = logsDir;
 config.logFilePath = path.join(logsDir, `electron-mcp-${config.port}.log`);
 
 log.transports.file.resolvePathFn = () => config.logFilePath;
+
+// 配置日志格式
+log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
+log.transports.console.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
+
+// 包装 log 方法以添加调用位置信息
+const originalInfo = log.info.bind(log);
+const originalError = log.error.bind(log);
+const originalWarn = log.warn.bind(log);
+const originalDebug = log.debug.bind(log);
+
+const getCallerInfo = () => {
+  const stack = new Error().stack;
+  const stackLines = stack.split('\n');
+  for (let i = 3; i < stackLines.length; i++) {
+    const line = stackLines[i];
+    if (line.includes('/src/') || line.includes('/tools/')) {
+      // 匹配格式: "at functionName (path:line:col)" 或 "at path:line:col"
+      const matchWithFunc = line.match(/at\s+(\S+)\s+\((.+):(\d+):\d+\)/);
+      const matchNoFunc = line.match(/at\s+(.+):(\d+):\d+/);
+      
+      if (matchWithFunc) {
+        const funcName = matchWithFunc[1];
+        const fullPath = matchWithFunc[2];
+        const fileName = fullPath.split('/').pop();
+        const lineNumber = matchWithFunc[3];
+        return `(${fileName}:${funcName}:${lineNumber})`;
+      } else if (matchNoFunc) {
+        const fullPath = matchNoFunc[1];
+        const fileName = fullPath.split('/').pop();
+        const lineNumber = matchNoFunc[2];
+        return `(${fileName}:${lineNumber})`;
+      }
+    }
+  }
+  return '';
+};
+
+log.info = (...args) => originalInfo(...args, getCallerInfo());
+log.error = (...args) => originalError(...args, getCallerInfo());
+log.warn = (...args) => originalWarn(...args, getCallerInfo());
+log.debug = (...args) => originalDebug(...args, getCallerInfo());
+
 log.info(`[MCP] Server starting at ${new Date().toISOString()}`);
 
 const app = express();
