@@ -1,15 +1,9 @@
+const { z } = require("zod");
 
-function registerTools(server) {
-  server.registerTool(
-    "ping",
-    "Ping",
-    {},
-    async () => {
-      return {
-        content: [{ type: "text", text: "Pone" }],
-      };
-    }
-  );
-}
-
-module.exports = registerTools;
+module.exports = (registerTool)=>{
+  registerTool("ping", "测试 MCP 服务器连接", z.object({}), async () => {
+    return {
+      content: [{ type: "text", text: "Pong" }],
+    };
+  });
+};

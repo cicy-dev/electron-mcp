@@ -1,16 +1,53 @@
-const { app: electronApp } = require('electron');
+const { app: electronApp, BrowserWindow } = require("electron");
+const fs = require("fs");
+const path = require("path");
+const log = require("electron-log");
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
+const { z } = require("zod");
+const { createWindow } = require("./utils/window-utils");
+
+const args = process.argv.slice(2);
+let PORT = args.find((arg) => arg.startsWith("--port="))?.split("=")[1];
+if (!PORT) {
+  const portIndex = args.indexOf("--port");
+  if (portIndex !== -1 && args[portIndex + 1]) {
+    PORT = args[portIndex + 1];
+  }
+}
+if (!PORT) {
+  PORT = process.env.PORT;
+}
+PORT = parseInt(PORT) || 8101;
+
+let START_URL = args.find((arg) => arg.startsWith("--url="))?.split("=")[1];
+if (!START_URL) {
+  const urlIndex = args.indexOf("--url");
+  if (urlIndex !== -1 && args[urlIndex + 1]) {
+    START_URL = args[urlIndex + 1];
+  }
+}
+
+const logsDir = path.join(process.env.HOME || process.env.USERPROFILE, "logs");
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const app = express();
 const server = http.createServer(app);
 
-const PORT = parseInt(process.env.PORT || process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] || '8101');
+console.log = (...args) => log.info(...args);
+console.info = (...args) => log.info(...args);
+console.warn = (...args) => log.warn(...args);
+console.error = (...args) => log.error(...args);
+console.debug = (...args) => log.debug(...args);
 
-app.use(cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type"] }));
+app.use(
+  cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type"] })
+);
 app.use(express.json({ limit: "50mb" }));
 
 const transports = {};
@@ -22,31 +59,25 @@ const mcpServer = new McpServer({
 });
 
 function registerTool(title, description, schema, handler) {
-  mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s)=>{
-    try{
-      return handler(s)
-    }catch(e){
-      console.error("Error",title,e)
+  if (schema && typeof schema === "object" && !schema._def) {
+    log.warn(`Tool "${title}" has invalid schema (not a Zod object):`, schema);
+    schema = z.object({});
+  }
+
+  mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s) => {
+    try {
+      return handler(s);
+    } catch (e) {
+      log.error("Error", title, e);
       return {
-          content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
-          isError: true,
-        };
+        content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
+        isError: true,
+      };
     }
   });
 }
 
-require('./tools/ping')({ registerTool });
-require('./tools/window-tools')({ registerTool });
-require('./tools/exec-js')({ registerTool });
-require('./tools/cdp-tools')({ registerTool });
-
-
-// const { registerCdpMouseTools } = require('./tools/cdp-mouse-tools');
-// const { registerCdpKeyboardTools } = require('./tools/cdp-keyboard-tools');
-// const { registerCdpPageTools } = require('./tools/cdp-page-tools');
-// const { registerCodeExecutionTools } = require('./tools/code-execution-tools');
-// const { registerScreenshotTools } = require('./tools/screenshot-tools');
-
+require("./tools/ping")(registerTool);
 
 function createTransport(res) {
   const transport = new SSEServerTransport("/messages", res);
@@ -54,17 +85,11 @@ function createTransport(res) {
 
   const originalSend = transport.send.bind(transport);
   transport.send = async (message) => {
-    // console.log("\n========== SSE SEND ==========");
-    // console.log("Session:", transport.sessionId);
-    // console.log("Message:", JSON.stringify(message, null, 2));
-    // console.log("============================\n");
     return originalSend(message);
   };
 
   return transport;
 }
-
- 
 
 app.get("/mcp", async (req, res) => {
   try {
@@ -73,9 +98,9 @@ app.get("/mcp", async (req, res) => {
       delete transports[transport.sessionId];
     });
     await mcpServer.connect(transport);
-    console.log("[MCP] SSE connection established:", transport.sessionId,req.url);
+    log.info("[MCP] SSE connection established:", transport.sessionId, req.url);
   } catch (error) {
-    console.error("[MCP] SSE error:", error);
+    log.error("[MCP] SSE error:", error);
     res.status(500).end();
   }
 });
@@ -83,12 +108,6 @@ app.get("/mcp", async (req, res) => {
 app.post("/messages", async (req, res) => {
   const sessionId = req.query.sessionId;
   const transport = transports[sessionId];
-
-  // console.log("\n========== REQUEST ==========");
-  // console.log("SessionId:", sessionId);
-  // console.log("Method:", req.method);
-  // console.log("Body:", JSON.stringify(req.body, null, 2));
-  // console.log("============================\n");
 
   if (!transport) {
     res.status(400).send("No transport found for sessionId");
@@ -98,25 +117,52 @@ app.post("/messages", async (req, res) => {
   try {
     await transport.handlePostMessage(req, res, req.body);
   } catch (error) {
-    console.error("[MCP] Message error:", error);
-    res.status(500).end(error.message);
+    log.error("[MCP] Error handling message:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`MCP HTTP Server running on http://localhost:${PORT}`);
-  console.log(`SSE endpoint: http://localhost:${PORT}/mcp`);
-});
+if (process.platform === "linux") {
+  process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
+  electronApp.commandLine.appendSwitch("log-level", "3");
+}
 
-// Electron 应用初始化
 electronApp.whenReady().then(() => {
-  console.log('[Electron] App ready');
+  log.transports.file.file = path.join(logsDir, `electron-mcp-${PORT}.log`);
+  log.transports.file.level = "debug";
+  log.transports.file.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}";
+  log.info(`[MCP] Log file: ${log.transports.file.file}`);
+  log.info(`[MCP] Server listening on http://localhost:${PORT}`);
+  log.info(`[MCP] SSE endpoint: http://localhost:${PORT}/mcp`);
+
+  if (START_URL) {
+    log.info(`[MCP] Opening window with URL: ${START_URL}`);
+    createWindow({ url: START_URL });
+  }
+
+  server.listen(PORT).on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      log.error(`[MCP] Port ${PORT} is already in use`);
+    } else {
+      log.error("[MCP] Server error:", err);
+    }
+    electronApp.quit();
+  });
 });
 
-electronApp.on('window-all-closed', () => {
-  // 不退出应用，保持 HTTP 服务器运行
+electronApp.on("window-all-closed", () => {
+  if (!START_URL) {
+    electronApp.quit();
+  }
 });
 
-electronApp.on('activate', () => {
-  // macOS 激活时不做任何操作
-});
+function cleanup() {
+  log.info("[MCP] Shutting down...");
+  server.close(() => {
+    log.info("[MCP] HTTP server closed");
+    electronApp.quit();
+  });
+}
+
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);

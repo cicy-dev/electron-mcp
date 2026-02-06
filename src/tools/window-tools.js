@@ -1,68 +1,16 @@
-const { BrowserWindow, app } = require('electron');
+const { BrowserWindow } = require("electron");
 const { z } = require("zod");
-const { initWindowMonitoring, getConsoleLogs, getRequests, getRequestDetail } = require('../utils/window-monitor');
-const { captureSnapshot } = require('../utils/snapshot-utils');
+const {
+  initWindowMonitoring,
+  getConsoleLogs,
+  getRequests,
+  getRequestDetail,
+} = require("../utils/window-monitor");
+const { captureSnapshot } = require("../utils/snapshot-utils");
+const { createWindow, getWindowInfo } = require("../utils/window-utils");
 
-// 全局监听所有窗口的 dom-ready 事件
-app.on('browser-window-created', (event, win) => {
-  // 启用 debugger
-  win.webContents.debugger.attach('1.3');
-  
-  // 初始化窗口监控
-  initWindowMonitoring(win);
-  
-  // 启用 network monitor
-  // win.webContents.on('did-finish-load', () => {
-  //   NetworkMonitor.setupNetworkMonitoring(win);
-  // });
-  
-  // 自动注入 JS
-  win.webContents.on('dom-ready', async () => {
-    try {
-      const encodedCode = await win.webContents.executeJavaScript(`
-        localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
-      `);
-      if (encodedCode) {
-        const code = Buffer.from(encodedCode, 'base64').toString('utf-8');
-        await win.webContents.executeJavaScript(`
-          (async () => {
-            try {
-              ${code}
-            } catch(e) {
-              console.error('Injected code error:', e);
-            }
-          })()
-        `);
-      }
-    } catch (e) {
-      console.error('Auto-inject error:', e);
-    }
-  });
-});
-
-function registerTools(server) {
-  
-  function getWindowInfo(win) {
-    const wc = win.webContents;
-    return {
-      id: win.id,
-      title: win.getTitle(),
-      url: wc.getURL(),
-      debuggerIsAttached: wc.debugger.isAttached(),
-      isActive: win.isFocused(),
-      bounds: win.getBounds(),
-      isDomReady: !wc.isLoading(),
-      isLoading: wc.isLoading(),
-      isDestroyed: wc.isDestroyed(),
-      isCrashed: wc.isCrashed(),
-      isWaitingForResponse: wc.isWaitingForResponse(),
-      isVisible: win.isVisible(),
-      isMinimized: win.isMinimized(),
-      isMaximized: win.isMaximized()
-    };
-  }
-
-  server.registerTool(
+function registerTools(registerTool) {
+  registerTool(
     "get_windows",
     `获取当前所有 Electron 窗口的实时状态列表。返回每个窗口的详细信息，是窗口管理和自动化操作的基础工具。
   
@@ -71,6 +19,7 @@ function registerTools(server) {
   - title/url: 窗口当前的标题和网址
   - debuggerIsAttached: 调试器是否已附加
   - isActive/isVisible: 窗口焦点和可见性状态
+  - accountIdx: 窗口所在帐户,帐户可以是0,1,2,3...每个相同帐户下面的所有窗口共享缓存cookie等,
   - bounds: 窗口位置和大小 (x, y, width, height)
   - 加载状态: isLoading, isDomReady, isCrashed 等
 
@@ -79,7 +28,7 @@ function registerTools(server) {
   - 状态监控：检查窗口是否正常运行
   - 自动化测试：验证窗口状态和属性
   - 调试辅助：查看所有窗口的实时信息`,
-    {},
+    z.object({}),
     async () => {
       try {
         const windows = BrowserWindow.getAllWindows().map(getWindowInfo);
@@ -90,10 +39,10 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "get_window_info",
     "获取指定窗口的详细信息",
-    { win_id: z.number().describe("Window ID") },
+    z.object({ win_id: z.number().describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -105,38 +54,35 @@ function registerTools(server) {
     }
   );
 
-
-  server.registerTool(
+  registerTool(
     "open_window",
     "打开新的浏览器窗口。用于创建新窗口访问网页、测试多窗口应用或隔离不同的浏览会话。支持自定义窗口大小和位置。",
-    {
+    z.object({
       url: z.string().describe("URL to open"),
+      accountIdx: z
+        .number()
+        .optional()
+        .default(0)
+        .describe("窗口所在帐户,帐户可以是0,1,2,3...每个相同帐户下面的所有窗口共享缓存cookie等"),
       options: z.object({}).optional().describe("Electron BrowserWindow options"),
-    },
-    async ({ url, options }) => {
-      const win = new BrowserWindow({
-        width: 1000,
-        height: 800,
-        ...options,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          partition: 'persist:mcp',
-          ...options?.webPreferences
-        }
-      });
-
-      await win.loadURL(url);
+    }),
+    async ({ url, accountIdx, options }) => {
+      const win = createWindow({ url, ...options }, accountIdx);
       return {
-        content: [{ type: "text", text: `Opened window with ID: ${win.id}, use tool: get_window_info and wait window webContents dom-ready` }],
+        content: [
+          {
+            type: "text",
+            text: `Opened window with ID: ${win.id}, use tool: get_window_info and wait window webContents dom-ready`,
+          },
+        ],
       };
     }
   );
 
-  server.registerTool(
+  registerTool(
     "close_window",
     "关闭窗口",
-    { win_id: z.number().describe("Window ID") },
+    z.object({ win_id: z.number().describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -151,13 +97,13 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "load_url",
     "加载URL",
-    {
+    z.object({
       url: z.string().describe("URL"),
       win_id: z.number().optional().describe("Window ID"),
-    },
+    }),
     async ({ url, win_id }) => {
       try {
         const actualWinId = win_id || 1;
@@ -171,10 +117,10 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "get_title",
     "获取窗口标题",
-    { win_id: z.number().describe("Window ID") },
+    z.object({ win_id: z.number().describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -186,25 +132,26 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "control_electron_BrowserWindow",
     "直接调用Electron BrowserWindow实例的方法和属性。主要用途：窗口控制(移动、调整大小、最小化、最大化)、状态管理(置顶、焦点、可见性)、属性获取(位置、大小、状态)、高级操作(透明度、边框、图标)。可访问win(BrowserWindow实例)和webContents对象，支持async/await。示例: win.getBounds() 或 win.maximize() 或 win.webContents.executeJavaScript('document.title')",
-    {
+    z.object({
       win_id: z.number().optional().default(1).describe("窗口 ID"),
       code: z.string().describe("JS 代码"),
-    },
+    }),
     async ({ win_id, code }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const execute = new AsyncFunction("win", "webContents", `return ${code}`);
         const result = await execute(win, win.webContents);
 
-        let outputText = typeof result === 'object' 
-          ? JSON.stringify(result, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)
-          : String(result);
+        let outputText =
+          typeof result === "object"
+            ? JSON.stringify(result, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2)
+            : String(result);
 
         return { content: [{ type: "text", text: outputText }] };
       } catch (error) {
@@ -213,36 +160,37 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "control_electron_WebContents",
     "调用Electron webContents的方法和属性。主要用途：页面操作(截图、打印、缩放、导航)、内容获取(URL、标题、源码)、脚本执行(在页面中执行JS)、开发调试(控制台信息、性能数据)、媒体控制(音频/视频)。可访问webContents和win对象，支持async/await，自动处理NativeImage返回为图像格式。示例: webContents.getURL() 或 webContents.reload() 或 webContents.capturePage()",
-    {
+    z.object({
       win_id: z.number().optional().default(1).describe("窗口 ID"),
       code: z.string().describe("JS 代码"),
-    },
+    }),
     async ({ win_id, code }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const execute = new AsyncFunction("webContents", "win", `return ${code}`);
         let result = await execute(win.webContents, win);
 
-        if (result?.constructor.name === 'NativeImage') {
+        if (result?.constructor.name === "NativeImage") {
           const size = result.getSize();
-          const base64 = result.toPNG().toString('base64');
+          const base64 = result.toPNG().toString("base64");
           return {
             content: [
               { type: "text", text: `Image: ${size.width}x${size.height}` },
-              { type: "image", data: base64, mimeType: "image/png" }
-            ]
+              { type: "image", data: base64, mimeType: "image/png" },
+            ],
           };
         }
 
-        let outputText = typeof result === 'object' 
-          ? JSON.stringify(result, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)
-          : String(result);
+        let outputText =
+          typeof result === "object"
+            ? JSON.stringify(result, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2)
+            : String(result);
 
         return { content: [{ type: "text", text: outputText }] };
       } catch (error) {
@@ -251,14 +199,14 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "get_console_logs",
     "获取窗口的控制台日志。返回自窗口创建或上次重载以来的所有 console 输出，包括 log/info/warning/error 等级别。支持分页查询。",
-    { 
+    z.object({
       win_id: z.number().describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
-      page_size: z.number().optional().default(50).describe("每页数量")
-    },
+      page_size: z.number().optional().default(50).describe("每页数量"),
+    }),
     async ({ win_id, page, page_size }) => {
       try {
         const logs = getConsoleLogs(win_id);
@@ -267,10 +215,10 @@ function registerTools(server) {
         const paginated = logs.slice(start, end);
         const result = {
           total: logs.length,
-          page,
-          page_size,
-          total_pages: Math.ceil(logs.length / page_size),
-          data: paginated
+          page: page,
+          page_size: page_size,
+          total_pages: logs.length > 0 ? Math.ceil(logs.length / page_size) : 0,
+          data: paginated,
         };
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
@@ -279,14 +227,14 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "get_requests",
     "获取窗口的网络请求记录。返回自窗口创建或上次重载以来的所有网络请求，包括 URL、方法、类型等信息。支持分页查询。",
-    { 
+    z.object({
       win_id: z.number().describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
-      page_size: z.number().optional().default(50).describe("每页数量")
-    },
+      page_size: z.number().optional().default(50).describe("每页数量"),
+    }),
     async ({ win_id, page, page_size }) => {
       try {
         const requests = getRequests(win_id);
@@ -295,10 +243,10 @@ function registerTools(server) {
         const paginated = requests.slice(start, end);
         const result = {
           total: requests.length,
-          page,
-          page_size,
-          total_pages: Math.ceil(requests.length / page_size),
-          data: paginated
+          page: page,
+          page_size: page_size,
+          total_pages: requests.length > 0 ? Math.ceil(requests.length / page_size) : 0,
+          data: paginated,
         };
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
@@ -307,71 +255,75 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "filter_requests",
     "根据关键词或文档类型过滤网络请求。搜索 URL、POST data 或按文档类型筛选。",
-    { 
+    z.object({
       win_id: z.number().describe("窗口 ID"),
       keyword: z.string().optional().describe("搜索关键词（可选）"),
-      doc_type: z.string().optional().describe("文档类型过滤（如 json, html, javascript, css, image, xml）"),
+      doc_type: z
+        .string()
+        .optional()
+        .describe("文档类型过滤（如 json, html, javascript, css, image, xml）"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
-      page_size: z.number().optional().default(50).describe("每页数量")
-    },
+      page_size: z.number().optional().default(50).describe("每页数量"),
+    }),
     async ({ win_id, keyword, doc_type, page, page_size }) => {
       try {
         const allRequests = getRequests(win_id);
-        
+
         // 过滤匹配的请求
-        const filtered = allRequests.filter(req => {
+        const filtered = allRequests.filter((req) => {
           let match = true;
-          
+
           // 关键词过滤
           if (keyword) {
             const lowerKeyword = keyword.toLowerCase();
             let keywordMatch = false;
-            
+
             // 检查 URL
             if (req.url.toLowerCase().includes(lowerKeyword)) {
               keywordMatch = true;
             }
-            
+
             // 检查 POST data
             if (!keywordMatch) {
               const detail = getRequestDetail(win_id, req.index);
               if (detail && detail.postData) {
-                const postData = typeof detail.postData === 'string' 
-                  ? detail.postData 
-                  : JSON.stringify(detail.postData);
+                const postData =
+                  typeof detail.postData === "string"
+                    ? detail.postData
+                    : JSON.stringify(detail.postData);
                 if (postData.toLowerCase().includes(lowerKeyword)) {
                   keywordMatch = true;
                 }
               }
             }
-            
+
             match = match && keywordMatch;
           }
-          
+
           // 文档类型过滤
           if (doc_type && match) {
             const lowerType = doc_type.toLowerCase();
-            const reqMime = (req.mimeType || '').toLowerCase();
+            const reqMime = (req.mimeType || "").toLowerCase();
             match = match && reqMime.includes(lowerType);
           }
-          
+
           return match;
         });
-        
+
         const start = (page - 1) * page_size;
         const end = start + page_size;
         const paginated = filtered.slice(start, end);
-        
+
         const result = {
           filters: { keyword, doc_type },
           total: filtered.length,
           page,
           page_size,
           total_pages: Math.ceil(filtered.length / page_size),
-          data: paginated
+          data: paginated,
         };
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
@@ -380,20 +332,20 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "get_request_detail",
     "获取指定请求的详细信息，包括请求头和请求体。使用请求的 index 来查询。",
-    { 
+    z.object({
       win_id: z.number().describe("窗口 ID"),
-      index: z.number().describe("请求的 index")
-    },
+      index: z.number().describe("请求的 index"),
+    }),
     async ({ win_id, index }) => {
       try {
         const detail = getRequestDetail(win_id, index);
         if (!detail) {
           throw new Error(`Request with index ${index} not found`);
         }
-        
+
         // 如果有 responseBodyFile 和 responseBodySize，检查大小
         if (detail.responseBodyFile && detail.responseBodySize) {
           if (detail.responseBodySize > 1024) {
@@ -401,26 +353,26 @@ function registerTools(server) {
             const result = {
               ...detail,
               responseBody: `[Response body too large: ${detail.responseBodySize} bytes]`,
-              responseBodyPath: detail.responseBodyFile
+              responseBodyPath: detail.responseBodyFile,
             };
             delete result.responseBodyFile;
             return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
           } else {
             // Response body <= 1KB，读取并包含在响应中
-            const fs = require('fs');
+            const fs = require("fs");
             if (fs.existsSync(detail.responseBodyFile)) {
-              const encoding = detail.base64Encoded ? 'base64' : 'utf8';
+              const encoding = detail.base64Encoded ? "base64" : "utf8";
               const body = fs.readFileSync(detail.responseBodyFile, encoding);
               const result = {
                 ...detail,
-                responseBody: body
+                responseBody: body,
               };
               delete result.responseBodyFile;
               return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             }
           }
         }
-        
+
         return { content: [{ type: "text", text: JSON.stringify(detail, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
@@ -428,36 +380,42 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "session_download_url",
     "使用窗口的 session 下载文件到指定路径。不会弹出保存对话框，下载完成后文件直接保存到 save_path。",
-    {
+    z.object({
       win_id: z.number().describe("窗口 ID"),
       url: z.string().describe("下载 URL"),
       save_path: z.string().describe("保存路径（完整路径包含文件名），下载完成后文件保存在此路径"),
-      timeout: z.number().optional().default(300000).describe("超时时间（毫秒），默认 5 分钟")
-    },
+      timeout: z.number().optional().default(300000).describe("超时时间（毫秒），默认 5 分钟"),
+    }),
     async ({ win_id, url, save_path, timeout }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`Window ${win_id} not found`);
 
-        const fs = require('fs');
-        const path = require('path');
+        const fs = require("fs");
+        const path = require("path");
         const session = win.webContents.session;
 
         // 检查文件是否已存在
         if (fs.existsSync(save_path)) {
           return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                status: "exists",
-                url,
-                path: save_path,
-                message: "File already exists"
-              }, null, 2)
-            }]
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    status: "exists",
+                    url,
+                    path: save_path,
+                    message: "File already exists",
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
           };
         }
 
@@ -494,7 +452,7 @@ function registerTools(server) {
                   path: save_path,
                   size: item.getTotalBytes(),
                   mime: item.getMimeType(),
-                  filename: item.getFilename()
+                  filename: item.getFilename(),
                 });
               });
             } catch (err) {
@@ -507,7 +465,7 @@ function registerTools(server) {
         });
 
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
@@ -515,7 +473,7 @@ function registerTools(server) {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "webpage_screenshot_and_to_clipboard",
     `捕获指定窗口的页面截图并自动复制到系统剪贴板。这是快速获取页面视觉内容的便捷工具。
 
@@ -530,22 +488,110 @@ function registerTools(server) {
 - 自动复制到剪贴板，可直接粘贴到其他应用
 - 返回 MCP 图像格式，支持在对话中显示
 - 包含图像尺寸信息`,
-    {
-      win_id: z.number().optional().describe("Window ID to capture (defaults to 1)")
-    },
+    z.object({
+      win_id: z.number().optional().describe("Window ID to capture (defaults to 1)"),
+    }),
     async ({ win_id }) => {
       try {
         const actualWinId = win_id || 1;
         const win = BrowserWindow.fromId(actualWinId);
         if (!win) throw new Error(`Window ${actualWinId} not found`);
         const result = await captureSnapshot(win.webContents, {
-          win_id: actualWinId
+          win_id: actualWinId,
         });
 
         return result;
       } catch (error) {
         return {
           content: [{ type: "text", text: `Error capturing snapshot: ${error.message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  registerTool(
+    "webpage_snapshot",
+    "捕获页面的结构快照，包含 URL 和所有可交互元素的信息",
+    z.object({ win_id: z.number().optional().describe("Window ID") }),
+    async ({ win_id }) => {
+      try {
+        const actualWinId = win_id || 1;
+        const win = BrowserWindow.fromId(actualWinId);
+        if (!win) throw new Error(`Window ${actualWinId} not found`);
+
+        const result = await win.webContents.executeJavaScript(`
+          (() => {
+            const url = window.location.href;
+            const title = document.title;
+            
+            const getElementInfo = (el) => {
+              const rect = el.getBoundingClientRect();
+              return {
+                tag: el.tagName.toLowerCase(),
+                text: (el.textContent || '').substring(0, 100).trim(),
+                href: el.href || null,
+                src: el.src || null,
+                placeholder: el.placeholder || null,
+                id: el.id || null,
+                className: el.className ? el.className.substring(0, 50) : null,
+                x: Math.round(rect.x),
+                y: Math.round(rect.y),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height)
+              };
+            };
+
+            const interactiveElements = [];
+            document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], [role="link"]').forEach(el => {
+              if (el.offsetParent !== null) {
+                interactiveElements.push(getElementInfo(el));
+              }
+            });
+
+            return {
+              url: url,
+              title: title,
+              interactive_elements: interactiveElements
+            };
+          })()
+        `);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                "Page Snapshot\nurl: " +
+                result.url +
+                "\ntitle: " +
+                result.title +
+                "\n\nInteractive Elements (" +
+                result.interactive_elements.length +
+                "):\n" +
+                result.interactive_elements
+                  .slice(0, 20)
+                  .map(
+                    (el, i) =>
+                      i +
+                      1 +
+                      ". [" +
+                      el.tag +
+                      "] " +
+                      (el.text || "(no text)") +
+                      " @ (" +
+                      el.x +
+                      ", " +
+                      el.y +
+                      ")"
+                  )
+                  .join("\n"),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${error.message}` }],
           isError: true,
         };
       }

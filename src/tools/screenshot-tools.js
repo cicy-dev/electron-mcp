@@ -1,12 +1,12 @@
-const { BrowserWindow } = require('electron');
+const { BrowserWindow } = require("electron");
 const { z } = require("zod");
-const { captureSnapshot } = require('../snapshot-utils');
+const { captureSnapshot } = require("../snapshot-utils");
 
-function registerTools(server) {
-  server.registerTool(
+function registerTools(registerTool) {
+  registerTool(
     "webpage_screenshot_and_to_clipboard",
     "截图并复制到剪贴板",
-    { win_id: z.number().optional().describe("窗口 ID") },
+    z.object({ win_id: z.number().optional().describe("窗口 ID") }),
     async ({ win_id }) => {
       try {
         const actualWinId = win_id || 1;

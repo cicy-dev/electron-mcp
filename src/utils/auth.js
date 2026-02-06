@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const os = require('os');
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+const os = require("os");
 
 /**
  * 认证模块 - 处理令牌生成、验证和管理
@@ -9,8 +9,8 @@ const os = require('os');
 class AuthManager {
   constructor() {
     this.authToken = process.env.MCP_AUTH_TOKEN || this.getOrGenerateToken();
-    console.log('[MCP] Auth token enabled');
-    console.log('[MCP] Token saved to ~/electron-mcp-token.txt');
+    console.log("[MCP] Auth token enabled");
+    console.log("[MCP] Token saved to ~/electron-mcp-token.txt");
   }
 
   /**
@@ -18,26 +18,26 @@ class AuthManager {
    * @returns {string} 认证令牌
    */
   getOrGenerateToken() {
-    const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
+    const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
 
     try {
       // 检查是否已存在令牌
       if (fs.existsSync(tokenPath)) {
-        const token = fs.readFileSync(tokenPath, 'utf8').trim();
+        const token = fs.readFileSync(tokenPath, "utf8").trim();
         if (token) {
-          console.log('[MCP] Using existing token from', tokenPath);
+          console.log("[MCP] Using existing token from", tokenPath);
           return token;
         }
       }
 
       // 生成新令牌
-      const newToken = crypto.randomBytes(32).toString('hex');
+      const newToken = crypto.randomBytes(32).toString("hex");
       fs.writeFileSync(tokenPath, newToken);
-      console.log('[MCP] Generated new token and saved to', tokenPath);
+      console.log("[MCP] Generated new token and saved to", tokenPath);
       return newToken;
     } catch (error) {
-      console.error('[MCP] Token management error:', error);
-      return crypto.randomBytes(32).toString('hex'); // fallback
+      console.error("[MCP] Token management error:", error);
+      return crypto.randomBytes(32).toString("hex"); // fallback
     }
   }
 
@@ -59,7 +59,7 @@ class AuthManager {
 
     if (!authHeader) return false;
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace("Bearer ", "");
     return token === this.authToken;
   }
 
