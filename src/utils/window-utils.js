@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require("electron");
-const { initWindowMonitoring } = require("./window-monitor");
+const path = require("path");
+const { config } = require("../config");
 
 app.name = "ElectronMCP";
 
@@ -7,7 +8,11 @@ function setupWindowHandlers(win) {
   if (!win.webContents.debugger.isAttached()) {
     win.webContents.debugger.attach("1.3");
   }
-  initWindowMonitoring(win);
+
+  // 初始化窗口监控（在 dom-ready 之前调用）
+  if (typeof initWindowMonitoring === "function") {
+    initWindowMonitoring(win);
+  }
 
   win.webContents.on("dom-ready", async () => {
     try {
@@ -38,6 +43,7 @@ function createWindow(options = {}, accountIdx = 0) {
   const win = new BrowserWindow({
     width,
     height,
+    x:0,y:0,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -46,11 +52,14 @@ function createWindow(options = {}, accountIdx = 0) {
     },
   });
 
-  const titlePrefix = `${accountIdx}-${win.id} | `;
-  win.setTitle(`${titlePrefix} | Loading...`);
+  function getTitlePrefix() {
+    return `${config.port}:${accountIdx}-${win.id} | `;
+  }
+
+  const titlePrefix = getTitlePrefix();
 
   win.webContents.on("page-title-updated", (event, title) => {
-    win.setTitle(`${titlePrefix} | ${title}`);
+    win.setTitle(`${getTitlePrefix()} | ${title}`);
   });
 
   setupWindowHandlers(win);
@@ -63,30 +72,35 @@ function createWindow(options = {}, accountIdx = 0) {
 }
 
 function getWindowInfo(win) {
-  const wc = win.webContents;
-  const partition = wc.session.partition;
-  const accountIdx = partition.startsWith("persist:sandbox-")
-    ? parseInt(partition.replace("persist:sandbox-", ""), 10)
-    : 0;
+  try {
+    const wc = win.webContents;
+    if (!wc || !wc.session) return null;
+    const partition = wc.session.partition || "";
+    const accountIdx = partition.startsWith("persist:sandbox-")
+      ? parseInt(partition.replace("persist:sandbox-", ""), 10)
+      : 0;
 
-  return {
-    id: win.id,
-    title: win.getTitle(),
-    url: wc.getURL(),
-    accountIdx,
-    partition,
-    debuggerIsAttached: wc.debugger.isAttached(),
-    isActive: win.isFocused(),
-    bounds: win.getBounds(),
-    isDomReady: !wc.isLoading(),
-    isLoading: wc.isLoading(),
-    isDestroyed: wc.isDestroyed(),
-    isCrashed: wc.isCrashed(),
-    isWaitingForResponse: wc.isWaitingForResponse(),
-    isVisible: win.isVisible(),
-    isMinimized: win.isMinimized(),
-    isMaximized: win.isMaximized(),
-  };
+    return {
+      id: win.id,
+      title: win.getTitle(),
+      url: wc.getURL(),
+      accountIdx,
+      partition,
+      debuggerIsAttached: wc.debugger.isAttached(),
+      isActive: win.isFocused(),
+      bounds: win.getBounds(),
+      isDomReady: !wc.isLoading(),
+      isLoading: wc.isLoading(),
+      isDestroyed: wc.isDestroyed(),
+      isCrashed: wc.isCrashed(),
+      isWaitingForResponse: wc.isWaitingForResponse(),
+      isVisible: win.isVisible(),
+      isMinimized: win.isMinimized(),
+      isMaximized: win.isMaximized(),
+    };
+  } catch (e) {
+    return null;
+  }
 }
 
 app.on("browser-window-created", (event, win) => {

@@ -8,10 +8,31 @@ const os = require("os");
 
 let PORT = 9843;
 let baseURL = `http://localhost:${PORT}`;
+let initUrl = "http://www.google.com";
+
+const LOG_FILE = path.join(os.homedir(), "logs", "test-utils.log");
+
+function log(level, message) {
+  const now = new Date();
+  const timestamp = now.toISOString().replace("T", " ").substring(0, 23);
+  const line = `[${timestamp}] [${level}] - ${message}\n`;
+  fs.appendFileSync(LOG_FILE, line);
+}
+
+function enableDebug(enabled = true) {
+  if (enabled) {
+    log("TEST", `Debug logging enabled, log file: ${LOG_FILE}`);
+  }
+}
 
 function setPort(port) {
   PORT = port;
   baseURL = `http://localhost:${PORT}`;
+  log("TEST", `Port set to: ${PORT}`);
+}
+
+function setInitUrl(url) {
+  initUrl = url;
 }
 
 let electronProcess;
@@ -21,37 +42,46 @@ let sseResponses = {};
 let requestId = 1;
 let authToken;
 
-function checkPort(port) {
-  return new Promise((resolve) => {
-    const client = new net.Socket();
-    client.setTimeout(1000);
-    client.on("connect", () => {
-      client.destroy();
-      resolve(true);
-    });
-    client.on("timeout", () => {
-      client.destroy();
-      resolve(false);
-    });
-    client.on("error", () => {
-      resolve(false);
-    });
-    client.connect(port, "localhost");
-  });
-}
-
 async function setupTest() {
   process.env.NODE_ENV = "test";
+  log("TEST", `========================================`);
+  log("TEST", `  Starting test setup`);
+  log("TEST", `  Port: ${PORT}`);
+  log("TEST", `  Init URL: ${initUrl}`);
+  log("TEST", `========================================`);
 
+  log("DEBUG", `Killing any existing processes on port ${PORT}...`);
   require("child_process").execSync(`lsof -ti:${PORT} | xargs kill -9 2>/dev/null || true`);
   await new Promise((resolve) => setTimeout(resolve, 1000));
+  log("DEBUG", `Port ${PORT} cleared`);
 
-  electronProcess = spawn("node", ["start-mcp.js", `--port=${PORT}`], {
+  log("DEBUG", `Spawning Electron MCP server...`);
+  log("DEBUG", `  Command: node start-mcp.js --port=${PORT} --url=${initUrl}`);
+  electronProcess = spawn("electron", [".", `--port=${PORT}`, `--url=${initUrl}`], {
     stdio: "pipe",
     detached: false,
     env: { ...process.env, TEST: "TRUE" },
   });
 
+  electronProcess.stdout.on("data", (data) => {
+    const output = data.toString();
+    process.stdout.write(`[ELECTRON] ${output}`);
+  });
+
+  electronProcess.stderr.on("data", (data) => {
+    const output = data.toString();
+    process.stderr.write(`[ELECTRON-ERR] ${output}`);
+  });
+
+  electronProcess.on("error", (err) => {
+    log("ERROR", `Failed to start Electron: ${err.message}`);
+  });
+
+  electronProcess.on("exit", (code) => {
+    log("DEBUG", `Electron process exited with code ${code}`);
+  });
+
+  log("DEBUG", `Waiting for server to start...`);
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("服务器启动超时")), 20000);
 
@@ -59,18 +89,25 @@ async function setupTest() {
       const output = data.toString();
       if (output.includes("Server listening on")) {
         clearTimeout(timeout);
+        log("INFO", `Server started successfully`);
         resolve();
       }
     });
   });
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
+  log("DEBUG", `Waited 3s for server to stabilize`);
 
   const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
+  log("DEBUG", `Checking for auth token at: ${tokenPath}`);
   if (fs.existsSync(tokenPath)) {
     authToken = fs.readFileSync(tokenPath, "utf8").trim();
+    log("DEBUG", `Auth token loaded, length: ${authToken.length}`);
+  } else {
+    log("WARN", `Auth token file not found`);
   }
 
+  log("DEBUG", `Establishing SSE connection to http://localhost:${PORT}/mcp...`);
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("SSE连接超时")), 10000);
 
@@ -86,6 +123,7 @@ async function setupTest() {
     };
 
     sseReq = http.request(options, (res) => {
+      log("DEBUG", `SSE connection established, status: ${res.statusCode}`);
       let buffer = "";
       res.on("data", (chunk) => {
         buffer += chunk.toString();
@@ -98,6 +136,7 @@ async function setupTest() {
           const line = lines[i].trim();
           if (line.startsWith("event:")) {
             eventType = line.substring(6).trim();
+            log("DEBUG", `SSE event: ${eventType}`);
           } else if (line.startsWith("data:")) {
             eventData = line.substring(5).trim();
 
@@ -105,6 +144,7 @@ async function setupTest() {
               const urlMatch = eventData.match(/sessionId=([^\s&]+)/);
               if (urlMatch) {
                 sessionId = urlMatch[1];
+                log("INFO", `SSE sessionId received: ${sessionId}`);
                 clearTimeout(timeout);
                 resolve();
               }
@@ -129,34 +169,65 @@ async function setupTest() {
         }
       });
 
-      res.on("error", reject);
+      res.on("error", (err) => {
+        log("ERROR", `SSE response error: ${err.message}`);
+        reject(err);
+      });
     });
 
-    sseReq.on("error", reject);
+    sseReq.on("error", (err) => {
+      log("ERROR", `SSE request error: ${err.message}`);
+      reject(err);
+    });
     sseReq.end();
   });
+
+  log("TEST", `========================================`);
+  log("TEST", `  Test setup complete`);
+  log("TEST", `  Session ID: ${sessionId}`);
+  log("TEST", `========================================`);
 }
 
-async function teardownTest() {
-  if (sseReq) sseReq.destroy();
-  if (electronProcess) {
+async function teardownTest(nokill) {
+  log("TEST", `========================================`);
+  log("TEST", `  Starting test teardown`);
+  log("TEST", `========================================`);
+
+  if (sseReq) {
+    log("DEBUG", `Destroying SSE connection...`);
+    sseReq.destroy();
+  }
+  
+  if (electronProcess && !nokill) {
+    log("DEBUG", `Killing Electron process (PID: ${electronProcess.pid})...`);
     electronProcess.kill("SIGTERM");
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    log("DEBUG", `Electron process killed`);
   }
+
+  log("TEST", `Teardown complete`);
 }
 
 async function sendRequest(method, params = {}) {
   const id = requestId++;
+  const reqBody = { jsonrpc: "2.0", id, method, params };
+
+  log("REQUEST", `➤ ${method} #${id}`);
+  log("REQUEST", JSON.stringify(reqBody, null, 2));
+
   const response = await request(baseURL)
     .post(`/messages?sessionId=${sessionId}`)
     .set("Accept", "application/json")
     .set("Content-Type", "application/json")
     .set("Authorization", `Bearer ${authToken}`)
-    .send({ jsonrpc: "2.0", id, method, params });
+    .send(reqBody);
 
   await new Promise((resolve) => {
     const checkResponse = () => {
       if (sseResponses[id]) {
+        const responseData = sseResponses[id];
+        log("RESPONSE", `◀ ${method} #${id}`);
+        log("RESPONSE", JSON.stringify(responseData, null, 2));
         resolve();
       } else {
         setTimeout(checkResponse, 100);
@@ -174,8 +245,10 @@ function getSessionId() {
 
 module.exports = {
   setPort,
+  setInitUrl,
   setupTest,
   teardownTest,
   sendRequest,
   getSessionId,
+  enableDebug,
 };

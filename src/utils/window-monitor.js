@@ -82,15 +82,20 @@ function initWindowMonitoring(win) {
         });
 
         // 存储详细信息
-        let detailData = {
+        const detailData = {
           requestId: params.requestId,
+          url: params.request.url,
+          method: params.request.method,
           headers: params.request.headers,
           postDataSize,
+          type: params.type,
         };
 
         // 如果 postData 太大，保存到文件
         if (postData && postDataSize > MAX_INLINE_SIZE) {
-          const postDataFile = filePath + ".post.dat";
+          const tmpDir = path.join(os.tmpdir(), "electron-mcp", `win-${winId}`);
+          if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+          const postDataFile = path.join(tmpDir, `post-${params.requestId}.dat`);
           fs.writeFileSync(postDataFile, postData);
           detailData.postDataFile = postDataFile;
         } else if (postData) {

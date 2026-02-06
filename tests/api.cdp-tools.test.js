@@ -9,7 +9,7 @@ describe("MCP HTTP API - CDP 工具测试", () => {
 
     const openResponse = await sendRequest("tools/call", {
       name: "open_window",
-      arguments: { url: "https://example.com" },
+      arguments: { url: "https://google.com" },
     });
     const text = openResponse.result.content[0].text;
     winId = parseInt(text.match(/\d+/)[0]);

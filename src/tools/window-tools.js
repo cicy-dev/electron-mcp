@@ -8,7 +8,6 @@ const {
 } = require("../utils/window-monitor");
 const { captureSnapshot } = require("../utils/snapshot-utils");
 const { createWindow, getWindowInfo } = require("../utils/window-utils");
-
 function registerTools(registerTool) {
   registerTool(
     "get_windows",
@@ -31,7 +30,9 @@ function registerTools(registerTool) {
     z.object({}),
     async () => {
       try {
-        const windows = BrowserWindow.getAllWindows().map(getWindowInfo);
+        const windows = BrowserWindow.getAllWindows()
+          .map(getWindowInfo)
+          .filter((w) => w !== null);
         return { content: [{ type: "text", text: JSON.stringify(windows, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
@@ -512,9 +513,13 @@ function registerTools(registerTool) {
 
   registerTool(
     "webpage_snapshot",
-    "捕获页面的结构快照，包含 URL 和所有可交互元素的信息",
-    z.object({ win_id: z.number().optional().describe("Window ID") }),
-    async ({ win_id }) => {
+    "捕获页面的结构快照，包含 URL、截图和所有可交互元素的信息。支持按类型/文本搜索元素。",
+    z.object({
+      win_id: z.number().optional().describe("Window ID"),
+      max_elements: z.number().optional().default(20).describe("最大元素数量"),
+      include_screenshot: z.boolean().optional().default(true).describe("是否包含截图"),
+    }),
+    async ({ win_id, max_elements, include_screenshot }) => {
       try {
         const actualWinId = win_id || 1;
         const win = BrowserWindow.fromId(actualWinId);
@@ -524,7 +529,11 @@ function registerTools(registerTool) {
           (() => {
             const url = window.location.href;
             const title = document.title;
-            
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const scrollX = window.scrollX;
+            const scrollY = window.scrollY;
+
             const getElementInfo = (el) => {
               const rect = el.getBoundingClientRect();
               return {
@@ -552,43 +561,75 @@ function registerTools(registerTool) {
             return {
               url: url,
               title: title,
+              viewportWidth: viewportWidth,
+              viewportHeight: viewportHeight,
+              scrollX: scrollX,
+              scrollY: scrollY,
               interactive_elements: interactiveElements
             };
           })()
         `);
 
-        return {
-          content: [
-            {
-              type: "text",
-              text:
-                "Page Snapshot\nurl: " +
-                result.url +
-                "\ntitle: " +
-                result.title +
-                "\n\nInteractive Elements (" +
-                result.interactive_elements.length +
-                "):\n" +
-                result.interactive_elements
-                  .slice(0, 20)
-                  .map(
-                    (el, i) =>
-                      i +
-                      1 +
-                      ". [" +
-                      el.tag +
-                      "] " +
-                      (el.text || "(no text)") +
-                      " @ (" +
-                      el.x +
-                      ", " +
-                      el.y +
-                      ")"
-                  )
-                  .join("\n"),
-            },
-          ],
-        };
+        const response = [
+          {
+            type: "text",
+            text:
+              "Page Snapshot\n" +
+              "url: " +
+              result.url +
+              "\n" +
+              "title: " +
+              result.title +
+              "\n" +
+              "viewport: " +
+              result.viewportWidth +
+              "x" +
+              result.viewportHeight +
+              "\n" +
+              "scroll: (" +
+              result.scrollX +
+              ", " +
+              result.scrollY +
+              ")\n" +
+              "Interactive Elements (" +
+              result.interactive_elements.length +
+              "):\n" +
+              result.interactive_elements
+                .slice(0, max_elements || 20)
+                .map(
+                  (el, i) =>
+                    i +
+                    1 +
+                    ". [" +
+                    el.tag +
+                    "] " +
+                    (el.text || "(no text)") +
+                    " @ (" +
+                    el.x +
+                    ", " +
+                    el.y +
+                    ") " +
+                    el.width +
+                    "x" +
+                    el.height
+                )
+                .join("\n"),
+          },
+        ];
+
+        if (include_screenshot) {
+          const snapshotResult = await captureSnapshot(win.webContents, { win_id: actualWinId });
+          const imageContent = snapshotResult.content.find((item) => item.type === "image");
+          if (imageContent) {
+            response.push({
+              type: "image",
+              data: imageContent.data,
+              mimeType: "image/png",
+            });
+          }
+        }
+
+        return { content: response };
       } catch (error) {
         return {
           content: [{ type: "text", text: `Error: ${error.message}` }],

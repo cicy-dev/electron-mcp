@@ -8,7 +8,10 @@ const http = require("http");
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
 const { z } = require("zod");
+const { config } = require("./config");
 const { createWindow } = require("./utils/window-utils");
+
+const transports = new Map();
 
 const args = process.argv.slice(2);
 let PORT = args.find((arg) => arg.startsWith("--port="))?.split("=")[1];
@@ -22,6 +25,7 @@ if (!PORT) {
   PORT = process.env.PORT;
 }
 PORT = parseInt(PORT) || 8101;
+config.port = PORT;
 
 let START_URL = args.find((arg) => arg.startsWith("--url="))?.split("=")[1];
 if (!START_URL) {
@@ -31,26 +35,23 @@ if (!START_URL) {
   }
 }
 
-const logsDir = path.join(process.env.HOME || process.env.USERPROFILE, "logs");
+const logsDir = path.join(electronApp.getPath("home"), "logs");
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
+config.logsDir = logsDir;
+config.logFilePath = path.join(logsDir, `electron-mcp-${config.port}.log`);
+
+log.transports.file.resolvePathFn = () => config.logFilePath;
+log.info(`[MCP] Server starting at ${new Date().toISOString()}`);
 
 const app = express();
 const server = http.createServer(app);
-
-console.log = (...args) => log.info(...args);
-console.info = (...args) => log.info(...args);
-console.warn = (...args) => log.warn(...args);
-console.error = (...args) => log.error(...args);
-console.debug = (...args) => log.debug(...args);
 
 app.use(
   cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type"] })
 );
 app.use(express.json({ limit: "50mb" }));
-
-const transports = {};
 
 const mcpServer = new McpServer({
   name: "electron-mcp",
@@ -78,6 +79,8 @@ function registerTool(title, description, schema, handler) {
 }
 
 require("./tools/ping")(registerTool);
+require("./tools/window-tools")(registerTool);
+require("./tools/exec-js")(registerTool);
 
 function createTransport(res) {
   const transport = new SSEServerTransport("/messages", res);
@@ -128,10 +131,7 @@ if (process.platform === "linux") {
 }
 
 electronApp.whenReady().then(() => {
-  log.transports.file.file = path.join(logsDir, `electron-mcp-${PORT}.log`);
-  log.transports.file.level = "debug";
-  log.transports.file.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}";
-  log.info(`[MCP] Log file: ${log.transports.file.file}`);
+  log.info(`[MCP] Log file: ${config.logFilePath}`);
   log.info(`[MCP] Server listening on http://localhost:${PORT}`);
   log.info(`[MCP] SSE endpoint: http://localhost:${PORT}/mcp`);
 

@@ -16,7 +16,7 @@ describe("MCP HTTP API - 大请求体测试", () => {
   test("应该打开新窗口", async () => {
     const response = await sendRequest("tools/call", {
       name: "open_window",
-      arguments: { url: "https://example.com" },
+      arguments: { url: "https://google.com" },
     });
     const text = response.result.content[0].text;
     winId = parseInt(text.match(/ID: (\d+)/)[1]);

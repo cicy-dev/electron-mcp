@@ -16,7 +16,7 @@ describe("MCP HTTP API - 窗口工具测试", () => {
     test("应该打开新窗口", async () => {
       const response = await sendRequest("tools/call", {
         name: "open_window",
-        arguments: { url: "https://example.com" },
+        arguments: { url: "https://google.com" },
       });
       expect(response.result).toBeDefined();
       const text = response.result.content[0].text;
@@ -76,7 +76,7 @@ describe("MCP HTTP API - 窗口工具测试", () => {
       expect(response.result).toBeDefined();
       expect(response.result.content[0].text).toContain("Page Snapshot");
       expect(response.result.content[0].text).toContain("url:");
-      expect(response.result.content[0].text).toContain("interactive_elements:");
+      expect(response.result.content[0].text).toContain("Interactive Elements");
     });
 
     test.skip("应该关闭窗口", async () => {

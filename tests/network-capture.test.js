@@ -111,26 +111,34 @@ describe("网络捕获测试", () => {
 
       data.data.forEach((req) => {
         const url = req.url.toLowerCase();
-        if (
-          !global.requestIndexes.html &&
-          url.includes("google.com") &&
-          !url.includes("api") &&
-          !url.includes("static")
-        ) {
+        const type = (req.type || "").toLowerCase();
+        const mimeType = (req.mimeType || "").toLowerCase();
+
+        // HTML: Document type with google.com URL
+        if (!global.requestIndexes.html && type === "document" && url.includes("google.com")) {
           global.requestIndexes.html = req.index;
         }
-        if (!global.requestIndexes.css && url.endsWith(".css")) {
+        // CSS: css type or .css extension
+        if (!global.requestIndexes.css && (type === "css" || url.endsWith(".css"))) {
           global.requestIndexes.css = req.index;
         }
-        if (!global.requestIndexes.js && url.endsWith(".js")) {
+        // JS: script type or .js extension
+        if (!global.requestIndexes.js && (type === "script" || url.endsWith(".js"))) {
           global.requestIndexes.js = req.index;
         }
-        if (!global.requestIndexes.json && url.includes("json")) {
+        // JSON: xhr type (JSON API usually uses fetch/XMLHttpRequest) or json in url
+        if (
+          !global.requestIndexes.json &&
+          (type === "xhr" || url.includes(".json") || mimeType.includes("json"))
+        ) {
           global.requestIndexes.json = req.index;
         }
+        // Image: image type or image extension
         if (
           !global.requestIndexes.image &&
-          (url.includes("image") || url.match(/\.(png|jpg|svg|webp|ico)$/))
+          (type === "image" ||
+            mimeType.includes("image/") ||
+            url.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)$/))
         ) {
           global.requestIndexes.image = req.index;
         }

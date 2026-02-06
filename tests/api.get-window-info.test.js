@@ -15,7 +15,7 @@ describe("MCP HTTP API - get_window_info 测试", () => {
   test("应该打开新窗口", async () => {
     const response = await sendRequest("tools/call", {
       name: "open_window",
-      arguments: { url: "https://example.com" },
+      arguments: { url: "https://google.com" },
     });
     expect(response.result).toBeDefined();
     const text = response.result.content[0].text;
@@ -33,7 +33,7 @@ describe("MCP HTTP API - get_window_info 测试", () => {
     expect(response.result).toBeDefined();
     const info = JSON.parse(response.result.content[0].text);
     expect(info.id).toBe(winId);
-    expect(info.url).toContain("example.com");
+    expect(info.url).toContain("google.com");
     expect(info).toHaveProperty("title");
     expect(info).toHaveProperty("debuggerIsAttached");
     expect(info).toHaveProperty("bounds");
