@@ -15,7 +15,11 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - run: npm test
+      - name: Run tests with Xvfb
+        run: xvfb-run --auto-servernum npm test
+        env:
+          CI: true
+          ELECTRON_DISABLE_SANDBOX: 1
 
   build:
     needs: test

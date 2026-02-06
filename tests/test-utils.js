@@ -69,8 +69,17 @@ async function setupTest() {
   log("DEBUG", `Port ${PORT} cleared`);
 
   log("DEBUG", `Spawning Electron MCP server...`);
-  log("DEBUG", `  Command: node start-mcp.js --port=${PORT} --url=${initUrl}`);
-  electronProcess = spawn("electron", [".", `--port=${PORT}`, `--url=${initUrl}`], {
+  log("DEBUG", `  Command: electron . --port=${PORT} --url=${initUrl} --no-sandbox`);
+  const electronArgs = [".", `--port=${PORT}`, `--url=${initUrl}`];
+  
+  // CI 环境中禁用沙箱
+  if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
+    electronArgs.push("--no-sandbox");
+    electronArgs.push("--disable-setuid-sandbox");
+    log("DEBUG", "  Running in CI mode with sandbox disabled");
+  }
+  
+  electronProcess = spawn("electron", electronArgs, {
     stdio: "pipe",
     detached: false,
     env: { ...process.env, TEST: "TRUE" },
