@@ -9,7 +9,7 @@ const log = require("electron-log");
  */
 class AuthManager {
   constructor() {
-    this.authToken = process.env.MCP_AUTH_TOKEN || this.getOrGenerateToken();
+    this.authToken = this.getOrGenerateToken();
     console.log("[MCP] Auth token enabled");
     console.log("[MCP] Token saved to ~/electron-mcp-token.txt");
   }
