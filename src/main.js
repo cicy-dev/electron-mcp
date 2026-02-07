@@ -5,6 +5,7 @@ const log = require("electron-log");
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
+const swaggerUi = require('swagger-ui-express');
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
 const { z } = require("zod");
@@ -103,6 +104,75 @@ log.info(`[MCP] Server starting at ${new Date().toISOString()}`);
 // 初始化认证管理器
 const authManager = new AuthManager();
 
+// 将 Zod schema 转换为 JSON Schema
+function zodToJsonSchema(zodSchema) {
+  if (!zodSchema || !zodSchema._def) {
+    return { type: 'object' };
+  }
+  
+  const def = zodSchema._def;
+  
+  if (def.typeName === 'ZodObject') {
+    const properties = {};
+    const required = [];
+    
+    const shape = def.shape();
+    for (const [key, value] of Object.entries(shape)) {
+      properties[key] = zodToJsonSchema(value);
+      // 检查是否是 optional 或 default
+      const isOptional = value._def.typeName === 'ZodOptional' || 
+                        value._def.typeName === 'ZodDefault';
+      if (!isOptional) {
+        required.push(key);
+      }
+    }
+    
+    return {
+      type: 'object',
+      properties,
+      ...(required.length > 0 && { required })
+    };
+  }
+  
+  if (def.typeName === 'ZodString') {
+    return { type: 'string' };
+  }
+  
+  if (def.typeName === 'ZodNumber') {
+    return { type: 'number' };
+  }
+  
+  if (def.typeName === 'ZodBoolean') {
+    return { type: 'boolean' };
+  }
+  
+  if (def.typeName === 'ZodArray') {
+    return {
+      type: 'array',
+      items: zodToJsonSchema(def.type)
+    };
+  }
+  
+  if (def.typeName === 'ZodOptional') {
+    return zodToJsonSchema(def.innerType);
+  }
+  
+  if (def.typeName === 'ZodDefault') {
+    const schema = zodToJsonSchema(def.innerType);
+    schema.default = def.defaultValue();
+    return schema;
+  }
+  
+  if (def.typeName === 'ZodEnum') {
+    return {
+      type: 'string',
+      enum: def.values
+    };
+  }
+  
+  return { type: 'object' };
+}
+
 const app = express();
 const server = http.createServer(app);
 
@@ -110,6 +180,129 @@ app.use(
   cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"] })
 );
 app.use(express.json({ limit: "50mb" }));
+
+// Ping endpoint - 无需认证
+app.get("/ping", (req, res) => {
+  res.json({ ping: "pong", ts: Date.now() });
+});
+
+// OpenAPI spec - 无需认证，动态生成
+app.get("/openapi.json", (req, res) => {
+  const tools = Array.from(toolHandlers.keys()).map(name => ({
+    name: name,
+    description: toolDescriptions.get(name) || '',
+    schema: zodToJsonSchema(toolSchemas.get(name))
+  }));
+  
+  const openapi = {
+    openapi: '3.0.0',
+    info: {
+      title: 'Electron MCP REST API',
+      version: '1.0.0',
+      description: `REST API for Electron MCP tools - ${tools.length} tools available`,
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: 'Local server',
+      },
+      {
+        url: 'https://gcp-8101.cicy.de5.net',
+        description: 'Remote server',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'token',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+    paths: {
+      '/rpc/tools': {
+        get: {
+          summary: 'List all available tools',
+          tags: ['Tools'],
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: 'List of tools',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      tools: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            name: { type: 'string' },
+                            description: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+  
+  // 为每个工具生成端点
+  tools.forEach(tool => {
+    openapi.paths[`/rpc/${tool.name}`] = {
+      post: {
+        description: tool.description,
+        tags: ['Tools'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: tool.schema
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Tool execution result',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    content: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          type: { type: 'string' },
+                          text: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          404: { description: 'Tool not found' },
+          500: { description: 'Execution error' }
+        }
+      }
+    };
+  });
+  
+  res.json(openapi);
+});
 
 // 认证中间件
 function authMiddleware(req, res, next) {
@@ -127,6 +320,11 @@ const mcpServer = new McpServer({
   description: "Electron MCP Server with browser automation tools",
 });
 
+// 保存工具处理函数
+const toolHandlers = new Map();
+const toolDescriptions = new Map();
+const toolSchemas = new Map();
+
 function registerTool(title, description, schema, handler) {
   // 确保 schema 是有效的 Zod 对象
   if (!schema || typeof schema !== "object" || !schema._def) {
@@ -134,6 +332,11 @@ function registerTool(title, description, schema, handler) {
     log.warn(`  Schema type: ${typeof schema}, has _def: ${schema && schema._def ? 'yes' : 'no'}`);
     schema = z.object({});
   }
+
+  // 保存处理函数、描述和 schema
+  toolHandlers.set(title, handler);
+  toolDescriptions.set(title, description);
+  toolSchemas.set(title, schema);
 
   mcpServer.registerTool(
     title, 
@@ -221,6 +424,128 @@ app.post("/messages", authMiddleware, async (req, res) => {
   }
 });
 
+// RPC endpoint - 直接调用工具，不需要 SSE
+app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
+  try {
+    const { method, params } = req.body;
+    
+    if (method === 'tools/call') {
+      const { name, arguments: args } = params;
+      
+      // 从 Map 中获取处理函数
+      const handler = toolHandlers.get(name);
+      if (!handler) {
+        return res.status(404).json({
+          jsonrpc: '2.0',
+          id: req.body.id || 1,
+          error: { message: `Tool not found: ${name}` }
+        });
+      }
+      
+      // 直接调用处理函数
+      const result = await handler(args);
+      
+      res.json({
+        jsonrpc: '2.0',
+        id: req.body.id || 1,
+        result: result
+      });
+    } else {
+      res.status(400).json({ error: 'Unsupported method' });
+    }
+  } catch (error) {
+    log.error("[RPC] Error:", error);
+    res.status(500).json({
+      jsonrpc: '2.0',
+      id: req.body.id || 1,
+      error: { message: error.message }
+    });
+  }
+});
+
+// RPC tools list - 返回所有可用工具
+app.get("/rpc/tools", authMiddleware, (req, res) => {
+  const tools = Array.from(toolHandlers.keys()).map(name => ({
+    name: name,
+    description: toolDescriptions.get(name) || ''
+  }));
+  res.json({ tools });
+});
+
+// RPC tools schemas - 返回所有工具的 schema（用于生成 OpenAPI）
+app.get("/rpc/schemas", authMiddleware, (req, res) => {
+  const schemas = {};
+  
+  // 从保存的 toolSchemas 转换
+  for (const [name, zodSchema] of toolSchemas) {
+    try {
+      schemas[name] = zodToJsonSchema(zodSchema);
+    } catch (e) {
+      log.error(`Error converting schema for ${name}:`, e);
+      schemas[name] = { type: 'object' };
+    }
+  }
+  
+  res.json({ schemas });
+});
+
+// REST API - 为每个工具创建独立端点
+app.post("/rpc/:toolName", authMiddleware, express.json(), async (req, res) => {
+  try {
+    const { toolName } = req.params;
+    const args = req.body;
+    
+    const handler = toolHandlers.get(toolName);
+    if (!handler) {
+      return res.status(404).json({
+        error: `Tool not found: ${toolName}`,
+        available: Array.from(toolHandlers.keys())
+      });
+    }
+    
+    const result = await handler(args);
+    res.json(result);
+  } catch (error) {
+    log.error(`[REST] Error calling ${req.params.toolName}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Python execution endpoint
+app.post("/rpc/python", authMiddleware, express.json(), async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'code is required' });
+    }
+    
+    const { exec } = require('child_process');
+    const pythonPath = path.join(__dirname, '..', 'python-exec.py');
+    
+    exec(`python3 ${pythonPath} '${code.replace(/'/g, "'\\''")}'`, (error, stdout, stderr) => {
+      if (error) {
+        return res.json({
+          content: [{ type: 'text', text: JSON.stringify({ success: false, error: stderr || error.message }) }]
+        });
+      }
+      
+      try {
+        const result = JSON.parse(stdout);
+        res.json({
+          content: [{ type: 'text', text: JSON.stringify(result) }]
+        });
+      } catch (e) {
+        res.json({
+          content: [{ type: 'text', text: stdout }]
+        });
+      }
+    });
+  } catch (error) {
+    log.error('[Python] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 if (process.platform === "linux") {
   process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
   electronApp.commandLine.appendSwitch("log-level", "3");
@@ -230,6 +555,131 @@ electronApp.whenReady().then(() => {
   log.info(`[MCP] Log file: ${config.logFilePath}`);
   log.info(`[MCP] Server listening on http://localhost:${PORT}`);
   log.info(`[MCP] SSE endpoint: http://localhost:${PORT}/mcp`);
+  log.info(`[MCP] REST API docs: http://localhost:${PORT}/docs`);
+
+  // 动态生成 Swagger spec
+  const tools = Array.from(toolHandlers.keys()).map(name => ({
+    name: name,
+    description: toolDescriptions.get(name) || ''
+  }));
+
+  // 为每个工具生成 path
+  const paths = {
+    '/rpc/tools': {
+      get: {
+        summary: 'List all available tools',
+        tags: ['Tools'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'List of tools',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    tools: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          name: { type: 'string' },
+                          description: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  // 为每个工具生成端点
+  tools.forEach(tool => {
+    paths[`/rpc/${tool.name}`] = {
+      post: {
+        summary: tool.description || `Call ${tool.name}`,
+        description: tool.description,
+        tags: ['Tools'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { type: 'object' }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Tool execution result',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    content: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          type: { type: 'string' },
+                          text: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          404: { description: 'Tool not found' },
+          500: { description: 'Execution error' }
+        }
+      }
+    };
+  });
+
+  const swaggerSpec = {
+    openapi: '3.0.0',
+    info: {
+      title: 'Electron MCP REST API',
+      version: '1.0.0',
+      description: `REST API for Electron MCP tools - ${tools.length} tools available`,
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: 'Local server',
+      },
+      {
+        url: 'https://gcp-8101.cicy.de5.net',
+        description: 'Remote server',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'token',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+    paths: paths
+  };
+  
+  // Swagger UI - 使用 /openapi.json（无需认证）
+  app.use('/docs', swaggerUi.serve);
+  app.get('/docs', swaggerUi.setup(null, {
+    swaggerUrl: '/openapi.json',
+    customCss: '.swagger-ui .topbar { display: none }',
+  }));
 
   if (START_URL) {
     log.info(`[MCP] Opening window with URL: ${START_URL}`);
