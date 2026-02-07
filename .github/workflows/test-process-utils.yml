@@ -36,12 +36,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Run process-utils tests
-        run: npm test -- tests/process-utils.test.js
+        run: npm test -- tests/process-utils.test.js --maxWorkers=1
         env:
           CI: true
+        timeout-minutes: 5
 
       - name: Upload test results
         if: always()
