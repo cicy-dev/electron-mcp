@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const os = require("os");
+const log = require("electron-log");
 
 /**
  * 认证模块 - 处理令牌生成、验证和管理
@@ -50,15 +51,14 @@ class AuthManager {
     const authHeader = req.headers.authorization;
 
     console.log(">> url:", req.url);
-    // if (req.body) {
-    //   console.log(">> body:", JSON.stringify(req.body, null, 2));
-    // } else {
-    //   console.log(">> body: [Empty or not parsed]");
-    // }
-    // console.log(">> headers:", JSON.stringify(req.headers, null, 2), authHeader);
+    if (req.body) {
+      console.log(">> body:", JSON.stringify(req.body, null, 2));
+    } else {
+      console.log(">> body: [Empty or not parsed]");
+    }
+    console.log(">> headers:", JSON.stringify(req.headers, null, 2), authHeader);
 
     if (!authHeader) return false;
-
     const token = authHeader.replace("Bearer ", "");
     return token === this.authToken;
   }

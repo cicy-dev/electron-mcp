@@ -139,8 +139,8 @@ async function killPortWindows(port) {
  */
 async function killPortUnix(port) {
   try {
-    // 查找占用端口的进程 PID
-    const { stdout } = await execAsync(`lsof -ti:${port}`);
+    // 使用 fuser 查找占用端口的进程（不需要 root 权限）
+    const { stdout } = await execAsync(`fuser ${port}/tcp 2>/dev/null || true`);
     
     if (!stdout.trim()) {
       return {
@@ -149,7 +149,10 @@ async function killPortUnix(port) {
       };
     }
 
-    const pids = stdout.trim().split('\n').filter(Boolean);
+    // 提取 PID
+    const pids = stdout.trim().split(/\s+/)
+      .filter(Boolean)
+      .map(pid => parseInt(pid));
     
     if (pids.length === 0) {
       return {
@@ -164,17 +167,9 @@ async function killPortUnix(port) {
     return {
       success: true,
       message: `Killed process(es) on port ${port}`,
-      pid: parseInt(pids[0]),
+      pid: pids[0],
     };
   } catch (error) {
-    // lsof 命令不存在或权限不足
-    if (error.message.includes('command not found') || error.message.includes('not found')) {
-      return {
-        success: false,
-        message: `lsof command not found. Please install lsof or run with sudo.`,
-      };
-    }
-    
     return {
       success: false,
       message: `Failed to kill process on port ${port}: ${error.message}`,
