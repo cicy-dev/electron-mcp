@@ -128,22 +128,33 @@ const mcpServer = new McpServer({
 });
 
 function registerTool(title, description, schema, handler) {
-  if (schema && typeof schema === "object" && !schema._def) {
-    log.warn(`Tool "${title}" has invalid schema (not a Zod object):`, schema);
+  // 确保 schema 是有效的 Zod 对象
+  if (!schema || typeof schema !== "object" || !schema._def) {
+    log.warn(`Tool "${title}" has invalid schema, using empty object`);
+    log.warn(`  Schema type: ${typeof schema}, has _def: ${schema && schema._def ? 'yes' : 'no'}`);
     schema = z.object({});
   }
 
-  mcpServer.registerTool(title, { title, description, inputSchema: schema }, async (s) => {
-    try {
-      return handler(s);
-    } catch (e) {
-      log.error("Error", title, e);
-      return {
-        content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
-        isError: true,
-      };
+  mcpServer.registerTool(
+    title, 
+    { 
+      title, 
+      description, 
+      inputSchema: schema 
+    }, 
+    async (s) => {
+      try {
+        return handler(s);
+      } catch (e) {
+        log.error("Error", title, e);
+        return {
+          content: [{ type: "text", text: `${title} invoke error:${e},tool desc: ${description}` }],
+          isError: true,
+        };
+      }
     }
-  });
+  );
+  //log.debug(`Registered tool: ${title}`);
 }
 
 require("./tools/ping")(registerTool);
@@ -169,10 +180,24 @@ app.get("/mcp", authMiddleware, async (req, res) => {
     res.on("close", () => {
       delete transports[transport.sessionId];
     });
+    
+    // 包装 transport 的 send 方法来捕获错误
+    const originalSend = transport.send.bind(transport);
+    transport.send = async (message) => {
+      try {
+        return await originalSend(message);
+      } catch (error) {
+        log.error("[MCP] Error sending message:", error);
+        log.error("[MCP] Message:", JSON.stringify(message, null, 2));
+        throw error;
+      }
+    };
+    
     await mcpServer.connect(transport);
     log.info("[MCP] SSE connection established:", transport.sessionId, req.url);
   } catch (error) {
     log.error("[MCP] SSE error:", error);
+    log.error("[MCP] SSE error stack:", error.stack);
     res.status(500).end();
   }
 });
@@ -187,9 +212,11 @@ app.post("/messages", authMiddleware, async (req, res) => {
   }
 
   try {
+    log.debug(`[MCP] Handling message: ${req.body.method}`);
     await transport.handlePostMessage(req, res, req.body);
   } catch (error) {
     log.error("[MCP] Error handling message:", error);
+    log.error("[MCP] Error stack:", error.stack);
     res.status(500).json({ error: error.message });
   }
 });

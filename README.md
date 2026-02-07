@@ -61,6 +61,13 @@
 - `webpage_snapshot` - 网页快照（截图+HTML）
 - `session_download_url` - 下载文件到指定路径
 
+### 进程与端口工具
+
+- `process-utils` - 跨平台进程和端口管理工具
+  - `isPortOpen(port, host, timeout)` - 检查端口是否开放
+  - `killPort(port)` - 杀死占用端口的进程
+  - 支持 Windows、macOS、Linux 三大平台
+
 ## 快速开始
 
 ### 安装依赖
@@ -199,6 +206,27 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 // 获取元素位置
 { "name": "get_element_client_bound", "arguments": { "win_id": 1, "selector": "button" } }
+```
+
+### 进程与端口管理
+
+```javascript
+const { isPortOpen, killPort } = require('./src/utils/process-utils');
+
+// 检查端口是否开放
+const isOpen = await isPortOpen(8080);
+console.log(`Port 8080 is ${isOpen ? 'open' : 'closed'}`);
+
+// 检查端口（自定义超时）
+const isOpen2 = await isPortOpen(8080, 'localhost', 2000);
+
+// 杀死占用端口的进程
+const result = await killPort(8080);
+if (result.success) {
+  console.log(`Killed process ${result.pid} on port 8080`);
+} else {
+  console.error(result.message);
+}
 ```
 
 ## 配置选项

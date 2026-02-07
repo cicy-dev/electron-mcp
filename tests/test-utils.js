@@ -5,6 +5,7 @@ const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { killPort,isPortOpen } = require("../src/utils/process-utils");
 
 // 重写 console.log，直接输出到 stderr，绕过 Jest 拦截
 console.log = (...args) => {
@@ -61,6 +62,12 @@ let requestId = 1;
 let authToken;
 
 async function setupTest() {
+  const isOpen = await isPortOpen(PORT)
+  console.log(PORT,"isOpen:",isOpen)
+  if(isOpen){
+    await killPort(PORT)
+  }
+
   process.env.NODE_ENV = "test";
   log("TEST", `========================================`);
   log("TEST", `  Starting test setup`);
@@ -69,7 +76,6 @@ async function setupTest() {
   log("TEST", `========================================`);
 
   log("DEBUG", `Killing any existing processes on port ${PORT}...`);
-  require("child_process").execSync(`lsof -ti:${PORT} | xargs kill -9 2>/dev/null || true`);
   await new Promise((resolve) => setTimeout(resolve, 1000));
   log("DEBUG", `Port ${PORT} cleared`);
 
@@ -79,9 +85,9 @@ async function setupTest() {
   
   // CI 环境中禁用沙箱
   if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
-    electronArgs.push("--no-sandbox");
-    electronArgs.push("--disable-setuid-sandbox");
-    log("DEBUG", "  Running in CI mode with sandbox disabled");
+    // electronArgs.push("--no-sandbox");
+    // electronArgs.push("--disable-setuid-sandbox");
+    // log("DEBUG", "  Running in CI mode with sandbox disabled");
   }
   
   electronProcess = spawn("electron", electronArgs, {
@@ -224,8 +230,9 @@ async function teardownTest(nokill) {
     log("DEBUG", `Destroying SSE connection...`);
     sseReq.destroy();
   }
-  
-  if (electronProcess && !nokill) {
+  console.log("TEST_ALL",process.env.TEST_ALL)
+  if (electronProcess && nokill) {
+    console.log("kill current electron process",electronProcess.pid)
     log("DEBUG", `Killing Electron process (PID: ${electronProcess.pid})...`);
     electronProcess.kill("SIGTERM");
     await new Promise((resolve) => setTimeout(resolve, 1000));
