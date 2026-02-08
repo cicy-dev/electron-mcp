@@ -6,8 +6,8 @@
 
 ### 1. 复制模板
 ```bash
-cp -r skill/template-rpc skill/your-skill-name
-cd skill/your-skill-name
+cp -r skills/template-rpc skills/your-skill-name
+cd skills/your-skill-name
 ```
 
 ### 2. 修改配置
@@ -110,4 +110,4 @@ npm install axios jest
 
 ---
 
-**参考示例：** `skill/aistudio/`
+**参考示例：** `skills/aistudio/`

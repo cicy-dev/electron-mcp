@@ -1,7 +1,7 @@
 # 任务：AI Studio 技能模块
 
 ## 需求描述
-创建一个新的 Electron MCP 技能模块 `aistudio`，位于 `./skill/aistudio` 目录。
+创建一个新的 Electron MCP 技能模块 `aistudio`，位于 `./skills/aistudio` 目录。
 该模块通过 HTTP 调用 electron-mcp 服务，实现 AI Studio 相关的自动化操作。
 
 ## 实现方案
@@ -13,7 +13,7 @@
 
 ### 目录结构
 ```
-skill/aistudio/
+skills/aistudio/
 ├── index.js                    # MCP 客户端封装
 ├── tools/
 │   └── aistudio-tools.js      # AI Studio 工具实现

@@ -1,8 +1,6 @@
 const { callRPC } = require('./rpc-utils');
 
 describe('RPC Basic Tools', () => {
-  jest.setTimeout(30000);
-  
   test('should ping', async () => {
     const result = await callRPC('ping');
     expect(result.content[0].text).toBe('Pong');

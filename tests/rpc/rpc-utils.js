@@ -3,38 +3,30 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PORT = process.env.RPC_PORT || 8101;
+const PORT = 18102; // 与 setup-test-server.js 一致
 const BASE_URL = `http://localhost:${PORT}`;
+const TOKEN_FILE = path.join(os.homedir(), 'electron-mcp-token.txt');
 
-const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
-const authToken = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf8').trim() : '';
-
-let requestId = 1;
+function getAuthToken() {
+  if (fs.existsSync(TOKEN_FILE)) {
+    return fs.readFileSync(TOKEN_FILE, 'utf-8').trim();
+  }
+  return '';
+}
 
 async function callRPC(toolName, args = {}) {
-  const payload = {
+  const token = getAuthToken();
+  const response = await axios.post(`${BASE_URL}/rpc/tools/call`, {
     name: toolName,
-    arguments: args,
-  };
-
-  const response = await axios.post(`${BASE_URL}/rpc/tools/call`, payload, {
+    arguments: args
+  }, {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${authToken}`,
-      'Connection': 'close',
-    },
-    timeout: 30000,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    }
   });
-
-  if (response.data.error) {
-    throw new Error(response.data.error);
-  }
-
+  
   return response.data.result;
 }
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-module.exports = { callRPC, sleep, BASE_URL, authToken };
+module.exports = { callRPC };

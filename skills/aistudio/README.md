@@ -23,7 +23,7 @@ node mcp-server.js start --port=8101
 **测试即文档 - 最直接的使用方式！**
 
 ```bash
-cd skill/aistudio
+cd skills/aistudio
 
 # 运行所有测试（完整功能演示）
 npm test
@@ -126,7 +126,7 @@ new AIStudioTools(mcpPort, mcpHost)
 npm start  # 在主项目目录
 
 # 运行测试
-cd skill/aistudio
+cd skills/aistudio
 npm test
 ```
 

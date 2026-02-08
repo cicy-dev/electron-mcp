@@ -28,7 +28,7 @@ A powerful MCP skill that allows you to control various LLM web interfaces (Gemi
 ## Installation
 
 ```bash
-cd skill/llm-automation
+cd skills/llm-automation
 npm install
 ```
 

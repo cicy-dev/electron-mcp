@@ -5,30 +5,33 @@
 ## 🚀 快速创建新 Skill
 
 ```bash
-bash skill/create-skill.sh my-skill
-cd skill/my-skill
+bash skills/create-skill.sh my-skill
+cd skills/my-skill
 npm test
 ```
 
 ## 📦 现有 Skills
 
-### aistudio
-AI Studio 自动化工具
-- 打开/关闭 AI Studio
-- 多账户支持
-- 窗口管理
+### 核心功能 (feature/)
+- **window-management** - 窗口管理自动化
+- **cdp-automation** - CDP 操作自动化
+- **javascript** - JavaScript 执行
+- **network** - 网络监控
 
-### template-rpc
-RPC Skill 模板
-- 完整的项目结构
-- 测试示例
-- 使用文档
+### 应用集成
+- **aistudio** - AI Studio 自动化工具
+- **llm-automation** - LLM 自动化工具
+- **multi-account** - 多账户管理
+
+### 工具
+- **curl-rpc** - RPC 命令行客户端
+- **template-rpc** - Skill 开发模板
 
 ## 🔧 开发新 Skill
 
 ### 1. 使用模板创建
 ```bash
-bash skill/create-skill.sh your-skill-name
+bash skills/create-skill.sh your-skill-name
 ```
 
 ### 2. 实现功能
@@ -55,7 +58,7 @@ npm test
 
 ## 📋 可用的 RPC 工具
 
-查看所有 36 个可用工具：
+查看所有可用工具：
 ```bash
 curl -s http://localhost:8101/rpc/tools \
   -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
@@ -81,7 +84,7 @@ curl -s http://localhost:8101/rpc/tools \
 
 ### 基础使用
 ```javascript
-const MySkill = require('./skill/my-skill');
+const MySkill = require('./skills/my-skill');
 const skill = new MySkill();
 
 // 打开窗口
@@ -126,9 +129,10 @@ bash ./service.sh logs
 
 ## 📖 参考文档
 
-- [RPC API 文档](../../tests/rpc/README.md)
-- [AI Studio Skill](./aistudio/README.md)
-- [模板文档](./template-rpc/README.md)
+- [Skills 列表](SKILLS-LIST.md)
+- [RPC API 文档](../tests/rpc/README.md)
+- [AI Studio Skill](aistudio/README.md)
+- [模板文档](template-rpc/README.md)
 
 ---
 

@@ -11,7 +11,7 @@ This guide explains the "Auto UI Run" feature, which uses the Electron MCP RPC i
 
 2.  **Run the Automation**:
     ```bash
-    cd skill/aistudio
+    cd skills/aistudio
     npm run auto
     ```
 

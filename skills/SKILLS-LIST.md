@@ -3,7 +3,7 @@
 ## Available Skills
 
 ### 1. curl-rpc - MCP RPC Client Tool
-**Location:** `/home/w3c_offical/projects/electron-mcp/skills/curl-rpc`
+**Location:** `./curl-rpc`
 
 **Description:** 轻量级 MCP RPC 调用工具，用于调用 Electron MCP 服务器。
 
@@ -15,7 +15,7 @@
 
 **Installation:**
 ```bash
-cp skills/curl-rpc/curl-rpc ~/.local/bin/
+cp curl-rpc/curl-rpc ~/.local/bin/
 chmod +x ~/.local/bin/curl-rpc
 ```
 
@@ -86,5 +86,5 @@ arguments:
 
 ## Skill Template
 
-See `./skill/template-rpc/` for creating new skills.
+See `./skills/template-rpc/` for creating new skills.
 

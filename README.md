@@ -536,7 +536,17 @@ electron-mcp/
 │       ├── window-monitor.js    # 窗口监控
 │       ├── cdp-utils.js         # CDP 封装
 │       └── snapshot-utils.js    # 截图工具
-├── tests/                   # 测试文件
+├── tests/                   # 核心测试
+│   ├── rpc/                 # RPC 基础测试
+│   └── mcp/                 # MCP 协议测试
+├── skills/                  # 功能技能模块
+│   ├── window-management/   # 窗口管理技能
+│   ├── cdp-automation/      # CDP 自动化技能
+│   ├── javascript/          # JavaScript 执行技能
+│   ├── network/             # 网络监控技能
+│   └── template-rpc/        # 技能模板
+├── changelog/               # 变更日志
+├── task/                    # 任务文档
 ├── bin/                     # 命令行工具
 │   └── curl-rpc            # YAML/JSON RPC 客户端
 └── package.json
@@ -561,7 +571,7 @@ curl-rpc "tools/call" "name: ping"
 
 1. 在 `src/tools/` 目录创建新工具文件
 2. 使用 `registerTool()` 注册工具，支持指定 tag
-3. 在 tests 目录添加测试用例
+3. 在 `tests/` 目录添加测试用例
 4. 更新 README.md
 
 ```javascript

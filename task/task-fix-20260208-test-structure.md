@@ -45,19 +45,24 @@ tests/
 └── showFloatdiv.test.js              → tests/rpc/show-float-div.test.js (合并)
 ```
 
-## TODO 清单
-- [x] 创建 RPC 测试辅助函数
-- [x] 迁移窗口管理测试
-- [x] 迁移 CDP 操作测试
-- [x] 迁移 JS 执行测试
-- [x] 迁移其他功能测试
-- [x] 删除原始测试文件
-- [x] 更新 README
-- [x] 运行完整测试套件验证
+## TODO 清单 - 测试重构完成
+
+### 基本 RPC 测试 (保留在 tests/rpc/)
+- [x] basic-tools.test.js - 基础工具测试
+- [x] rpc-tools.test.js - RPC 调用测试
+- [x] rest-api.test.js - REST API 测试
+- [x] all-tools.test.js - 所有工具列表测试
+- [x] error-handling.test.js - 错误处理测试
+
+### 功能测试 (移到 skills/)
+- [x] skills/window-management/ - 窗口管理测试
+- [x] skills/cdp-automation/ - CDP 自动化测试
+- [x] skills/javascript/ - JavaScript 执行测试
+- [x] skills/network/ - 网络监控测试
+- [x] skills/multi-account/ - 多账户测试
 
 ## 验收标准
-- [x] 所有测试使用 RPC 方式
-- [x] 所有测试通过 (53 passed, 1 skipped)
-- [x] 原始 tests/*.test.js 文件已删除
-- [x] tests/rpc/README.md 已更新
+- [x] 所有基本 RPC 测试通过
+- [x] 功能测试移到 skills/ 目录
+- [x] 测试结构清晰，易于维护
 - [x] 代码符合规范

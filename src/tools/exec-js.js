@@ -293,9 +293,7 @@ function registerTools(registerTool) {
           content: [
             {
               type: "text",
-              text: result.result
-                ? result.result.description || JSON.stringify(result)
-                : JSON.stringify(result),
+              text: result.result?.value || result.result?.description || JSON.stringify(result),
             },
           ],
         };
