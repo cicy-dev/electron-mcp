@@ -61,21 +61,21 @@ result:
 {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"Pong"}]}}
 ```
 
-## curl-mcp 工具
+## curl-rpc 工具
 
 ### 默认行为
 
-`curl-mcp` 默认使用 YAML 格式：
+`curl-rpc` 默认使用 YAML 格式：
 
 ```bash
 # YAML（默认，无需标志）
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: ping
 arguments: {}
 "
 
 # JSON（需要 --json 或 -j）
-curl-mcp "tools/call" --json '{"name":"ping","arguments":{}}'
+curl-rpc "tools/call" --json '{"name":"ping","arguments":{}}'
 ```
 
 ### 自动处理
@@ -113,7 +113,7 @@ pip install yq --break-system-packages
 ### 打开窗口
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://gemini.google.com
@@ -123,7 +123,7 @@ arguments:
 ### 设置窗口位置
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: set_window_bounds
 arguments:
   win_id: 1
@@ -137,7 +137,7 @@ arguments:
 ### 执行 JavaScript
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: exec_js
 arguments:
   win_id: 1
@@ -148,7 +148,7 @@ arguments:
 ### 复杂参数
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://example.com
@@ -204,7 +204,7 @@ pip install yq --break-system-packages
 如果服务器版本较旧，使用 JSON 格式：
 
 ```bash
-curl-mcp "tools/call" --json '{"name":"ping","arguments":{}}'
+curl-rpc "tools/call" --json '{"name":"ping","arguments":{}}'
 ```
 
 ## 技术实现

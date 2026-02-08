@@ -6,7 +6,7 @@ This guide explains the "Auto UI Run" feature, which uses the Electron MCP RPC i
 
 1.  **Start the MCP Server**:
     ```bash
-    bash /home/w3c_offical/mcp-service.sh start
+    bash ./service.sh start
     ```
 
 2.  **Run the Automation**:

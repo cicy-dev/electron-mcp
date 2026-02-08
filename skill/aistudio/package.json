@@ -1,5 +1,5 @@
 {
-  "name": "@electron-mcp/aistudio-skill",
+  "name": "@electron-mcp.",
   "version": "1.0.0",
   "description": "AI Studio skill module for Electron MCP",
   "main": "index.js",

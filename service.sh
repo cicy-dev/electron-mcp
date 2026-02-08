@@ -3,6 +3,7 @@
 
 COMMAND=${1:-start}
 PORT=${2:-8101}
+DISPLAY_NUM=${3:-:2}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/electron-mcp-${PORT}.log"
 PID_FILE="/tmp/electron-mcp-${PORT}.pid"
@@ -11,15 +12,15 @@ start() {
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
         if ps -p $pid > /dev/null 2>&1; then
-            echo "✅ 服务已在运行 (PID: $pid, 端口: $PORT)"
+            echo "✅ 服务已在运行 (PID: $pid, 端口: $PORT, DISPLAY: $DISPLAY_NUM)"
             return 0
         fi
     fi
 
-    echo "🚀 启动服务 (端口: $PORT)..."
+    echo "🚀 启动服务 (端口: $PORT, DISPLAY: $DISPLAY_NUM)..."
     
     cd "$SCRIPT_DIR"
-    DISPLAY=:2 PORT=$PORT npm start -- --one-window > "$LOG_FILE" 2>&1 &
+    DISPLAY=$DISPLAY_NUM PORT=$PORT npm start -- --one-window > "$LOG_FILE" 2>&1 &
     local pid=$!
     echo $pid > "$PID_FILE"
     
@@ -99,15 +100,16 @@ case "$COMMAND" in
         logs
         ;;
     *)
-        echo "用法: $0 {start|stop|restart|status|logs} [port]"
+        echo "用法: $0 {start|stop|restart|status|logs} [port] [display]"
         echo ""
         echo "示例:"
-        echo "  $0 start        # 启动服务 (默认端口 8101)"
-        echo "  $0 start 8102   # 启动服务 (端口 8102)"
-        echo "  $0 status       # 查看状态"
-        echo "  $0 logs         # 查看日志"
-        echo "  $0 restart      # 重启服务"
-        echo "  $0 stop         # 停止服务"
+        echo "  $0 start              # 启动服务 (默认端口 8101, DISPLAY :2)"
+        echo "  $0 start 8102         # 启动服务 (端口 8102, DISPLAY :2)"
+        echo "  $0 start 8102 :1      # 启动服务 (端口 8102, DISPLAY :1)"
+        echo "  $0 status             # 查看状态"
+        echo "  $0 logs               # 查看日志"
+        echo "  $0 restart            # 重启服务"
+        echo "  $0 stop               # 停止服务"
         exit 1
         ;;
 esac

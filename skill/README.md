@@ -111,17 +111,17 @@ await skill.client.callTool('webpage_screenshot_and_to_clipboard', { win_id: win
 
 ### 启动服务
 ```bash
-bash /home/w3c_offical/mcp-service.sh start
+bash ./service.sh start
 ```
 
 ### 查看状态
 ```bash
-bash /home/w3c_offical/mcp-service.sh status
+bash ./service.sh status
 ```
 
 ### 查看日志
 ```bash
-bash /home/w3c_offical/mcp-service.sh logs
+bash ./service.sh logs
 ```
 
 ## 📖 参考文档

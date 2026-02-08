@@ -14,7 +14,7 @@ AI Studio 技能模块，通过调用 Electron MCP 服务实现 AI Studio 的自
 ### 1. 启动 electron-mcp 服务
 
 ```bash
-cd /home/w3c_offical/Desktop/branch/electron-mcp-feat-20260207-aistudio-skill
+cd /home/w3c_offical/Desktop/branch/electron-mcp/skills
 node mcp-server.js start --port=8101
 ```
 

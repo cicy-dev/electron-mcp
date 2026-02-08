@@ -5,11 +5,15 @@
 ## ✨ 核心特性
 
 - 🚀 **YAML 优先** - 默认 YAML 格式，节省 30-45% token
+- 🔥 **热重载** - 修改工具代码无需重启 Electron
 - 🪟 **窗口管理** - 多窗口支持，智能复用
 - 👤 **多账户隔离** - Cookie/Storage 完全隔离
 - 🎯 **CDP 操作** - 鼠标、键盘、页面控制
 - 📸 **截图与监控** - 网络请求、控制台日志
-- 🔧 **轻量工具** - curl-mcp 命令行工具
+- 🔧 **轻量工具** - curl-rpc 命令行工具
+- 🧩 **模块化架构** - 清晰的代码组织，易于维护
+- ⚡ **执行工具** - Shell/Python/npm 命令执行
+- 📋 **剪贴板操作** - 文本和图片的读写
 
 ## 功能特性
 
@@ -40,10 +44,23 @@
 - `cdp_press_enter` - 按下回车键
 - `cdp_press_backspace` - 按下退格键
 - `cdp_press_copy` - 复制 (Ctrl+C)
-- `cdp_press_paste` - 粘贴 (Ctrl+V)
+- `cdp_press_paste` - 粘贴 (支持 sendInputEvent/CDP/JS 三种方法)
 - `cdp_press_selectall` - 全选 (Ctrl+A)
 - `cdp_press_cut` - 剪切 (Ctrl+X)
 - `cdp_type_text` - 输入文本
+
+### 剪贴板操作
+
+- `clipboard_write_text` - 写入文本到剪贴板
+- `clipboard_read_text` - 读取剪贴板文本
+- `clipboard_write_image` - 写入图片到剪贴板
+- `test_paste_methods` - 测试三种粘贴方法
+
+### 执行工具
+
+- `exec_shell` - 执行 Shell 命令
+- `exec_python` - 执行 Python 代码
+- `exec_npm` - 执行 npm 命令
 
 ### CDP 页面操作
 
@@ -116,11 +133,14 @@ npm start -- --port=8080 --url=http://example.com --account=2 --one-window
 ### 使用 service.sh 管理服务
 
 ```bash
-# 启动服务（后台运行，默认启用 --one-window）
+# 启动服务（后台运行，默认 DISPLAY :2）
 ./service.sh start
 
 # 指定端口启动
 ./service.sh start 8102
+
+# 指定端口和 DISPLAY
+./service.sh start 8102 :1
 
 # 查看服务状态
 ./service.sh status
@@ -204,14 +224,14 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 ## 使用示例
 
-### 命令行工具 (curl-mcp)
+### 命令行工具 (curl-rpc)
 
 快速调用 MCP 工具的轻量级命令行工具，**默认使用 YAML 格式**（节省 30-45% token）：
 
 ```bash
 # 安装到 ~/.local/bin
-curl -o ~/.local/bin/curl-mcp https://raw.githubusercontent.com/cicy-dev/electron-mcp/main/bin/curl-mcp
-chmod +x ~/.local/bin/curl-mcp
+curl -o ~/.local/bin/curl-rpc https://raw.githubusercontent.com/cicy-dev/electron-mcp/main/bin/curl-rpc
+chmod +x ~/.local/bin/curl-rpc
 
 # 安装依赖（YAML 支持）
 pip install yq --break-system-packages
@@ -220,14 +240,14 @@ pip install yq --break-system-packages
 echo "your-token-here" > ~/electron-mcp-token.txt
 
 # YAML 格式（默认，推荐）
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://google.com
 "
 
 # 设置窗口大小和位置
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: set_window_bounds
 arguments:
   win_id: 1
@@ -238,14 +258,14 @@ arguments:
 "
 
 # 复用窗口（默认行为）
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://github.com
 "
 
 # 强制创建新窗口
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://github.com
@@ -253,10 +273,10 @@ arguments:
 "
 
 # JSON 格式（需要 --json 或 -j 标志）
-curl-mcp "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
+curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
 
 # 重新加载窗口
-curl-mcp "tools/call" --json '{"name":"control_electron_WebContents","arguments":{"win_id":1,"code":"webContents.reload()"}}'
+curl-rpc "tools/call" --json '{"name":"control_electron_WebContents","arguments":{"win_id":1,"code":"webContents.reload()"}}'
 ```
 
 **格式对比：**
@@ -497,7 +517,15 @@ npm test -- api.exec-js.test.js
 ```
 electron-mcp/
 ├── src/
-│   ├── main.js              # 主入口，Electron + MCP 服务器
+│   ├── main.js              # 主入口（模块化）
+│   ├── config.js            # 配置文件
+│   ├── server/              # 服务器模块
+│   │   ├── electron-setup.js    # Electron 配置
+│   │   ├── args-parser.js       # 参数解析
+│   │   ├── logging.js           # 日志系统
+│   │   ├── express-app.js       # Express 应用
+│   │   ├── mcp-server.js        # MCP 服务器
+│   │   └── tool-registry.js     # 工具注册
 │   ├── tools/               # MCP 工具实现
 │   │   ├── window-tools.js  # 窗口管理工具
 │   │   ├── cdp-tools.js     # CDP 操作工具
@@ -509,7 +537,24 @@ electron-mcp/
 │       ├── cdp-utils.js         # CDP 封装
 │       └── snapshot-utils.js    # 截图工具
 ├── tests/                   # 测试文件
+├── bin/                     # 命令行工具
+│   └── curl-rpc            # YAML/JSON RPC 客户端
 └── package.json
+```
+
+### 热重载开发
+
+修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，下次调用工具时自动加载最新代码。
+
+```bash
+# 启动服务
+./service.sh start
+
+# 修改工具代码
+vim src/tools/ping.js
+
+# 直接测试，自动使用新代码
+curl-rpc "tools/call" "name: ping"
 ```
 
 ### 添加新工具

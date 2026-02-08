@@ -5,7 +5,7 @@
 ### 1. YAML/JSON 双格式支持 ✨
 
 - **服务器端**: 根据 `Accept` 头返回 YAML 或 JSON 格式
-- **客户端**: curl-mcp 工具默认使用 YAML 格式
+- **客户端**: curl-rpc 工具默认使用 YAML 格式
 - **Token 节省**: YAML 格式节省 30-45% 字符和 token
 
 ### 2. set_window_bounds 工具 🪟
@@ -20,7 +20,7 @@
 - 默认 `reuseWindow=true`（复用现有窗口）
 - 设置 `reuseWindow=false` 强制创建新窗口
 
-### 4. curl-mcp 命令行工具 🔧
+### 4. curl-rpc 命令行工具 🔧
 
 - 轻量级 MCP 调用工具
 - 默认 YAML 格式，使用 `--json` 切换到 JSON
@@ -35,7 +35,7 @@
 - `src/utils/window-utils.js` - 添加 forceNew 参数支持
 
 ### 工具和文档
-- `bin/curl-mcp` - 新增命令行工具
+- `bin/curl-rpc` - 新增命令行工具
 - `docs/YAML-SUPPORT.md` - YAML 支持详细文档
 - `README.md` - 更新功能说明和使用示例
 - `tests/api.set-window-bounds.test.js` - 新增测试
@@ -57,7 +57,7 @@ pip install yq --break-system-packages
 ### YAML 格式（推荐）
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://google.com
@@ -67,7 +67,7 @@ arguments:
 ### 设置窗口
 
 ```bash
-curl-mcp "tools/call" "
+curl-rpc "tools/call" "
 name: set_window_bounds
 arguments:
   win_id: 1
@@ -81,7 +81,7 @@ arguments:
 ### JSON 格式
 
 ```bash
-curl-mcp "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
+curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
 ```
 
 ## 性能提升

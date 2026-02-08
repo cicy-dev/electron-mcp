@@ -8,8 +8,8 @@ if [ -z "$1" ]; then
 fi
 
 SKILL_NAME=$1
-TEMPLATE_DIR="/home/w3c_offical/Desktop/branch/electron-mcp-feat-20260207-aistudio-skill/skill/template-rpc"
-TARGET_DIR="/home/w3c_offical/Desktop/branch/electron-mcp-feat-20260207-aistudio-skill/skill/$SKILL_NAME"
+TEMPLATE_DIR="/home/w3c_offical/Desktop/branch/electron-mcp/skills/skill/template-rpc"
+TARGET_DIR="/home/w3c_offical/Desktop/branch/electron-mcp/skills/skill/$SKILL_NAME"
 
 if [ -d "$TARGET_DIR" ]; then
     echo "❌ Skill '$SKILL_NAME' 已存在"
