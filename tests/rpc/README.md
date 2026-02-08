@@ -7,7 +7,7 @@
 ```bash
 # 1. 启动服务
 cd ../..
-node mcp-server.js start --port=8101 -r
+npm start -- --port=8101
 
 # 2. 运行测试
 cd tests/rpc
@@ -16,25 +16,77 @@ npm test
 
 ## 测试覆盖
 
-✅ **Ping** (1/1)
+✅ **基础工具** (basic-tools.test.js)
 - ping
+- get_windows
 
-✅ **Window Tools** (4/4)
+✅ **窗口管理** (window-tools.test.js)
 - open_window
 - get_windows
-- get_window_info
-- close_window
-
-✅ **CDP Tools** (3/3)
-- cdp_click
+- get_title
+- load_url
 - webpage_screenshot_and_to_clipboard
 - webpage_snapshot
+- close_window
 
-✅ **Exec JS** (2/2)
-- exec_js (simple)
-- exec_js (complex)
+✅ **CDP 工具** (cdp-tools.test.js)
+- cdp_click
+- cdp_dblclick
+- cdp_press_key
+- cdp_press_enter
+- cdp_press_backspace
+- cdp_press_copy
+- cdp_press_paste
+- cdp_press_selectall
+- cdp_press_cut
+- cdp_type_text
+- cdp_scroll
+- cdp_sendcmd
 
-**总计：10/10 测试通过！**
+✅ **CDP 键盘** (cdp-keyboard.test.js)
+- cdp_press_key
+- cdp_press_enter
+- cdp_press_backspace
+- cdp_type_text
+
+✅ **JS 执行** (exec-js.test.js)
+- inject_auto_run_when_dom_ready_js
+- inject_auto_run_when_dom_ready_js_read
+- exec_js
+- get_element_client_bound
+
+✅ **窗口边界** (set-window-bounds.test.js)
+- set_window_bounds (position)
+- set_window_bounds (size)
+- set_window_bounds (position + size)
+
+✅ **多账户** (multi-account.test.js)
+- open_window (account 0)
+- open_window (account 1)
+- get_window_info
+
+✅ **错误处理** (error-handling.test.js)
+- invalid window ID
+- invalid tool name
+- missing arguments
+
+✅ **浮动框** (show-float-div.test.js)
+- show_float_div
+- show_float_div (custom content)
+
+✅ **网络捕获** (network-capture.test.js)
+- get_requests
+- filter_requests
+- get_console_logs
+
+✅ **所有工具** (all-tools.test.js)
+- 列出所有可用工具
+
+✅ **REST API** (rest-api.test.js)
+- GET /health
+- GET /openapi.json
+
+**总计：50+ 测试用例！**
 
 ## 测试结果
 
