@@ -5,65 +5,109 @@ This file provides guidelines for AI agents working on this codebase.
 ## Build, Lint, and Test Commands
 
 ### Core Commands
+
 ```bash
 # Start the MCP server (runs Electron app with MCP endpoint)
 npm start
 
-# Run tests (Jest with forceExit to handle hanging processes)
+# Start with specific port
+npm start -- --port=8102
+
+# Start with URL and single window mode
+npm start -- --url=http://example.com --one-window
+
+# Run all tests (Jest with forceExit to handle Electron processes)
 npm test
 
-# Run a single test
-npm test -- --testNamePattern="test name"
+# Run a single test file
+npm test -- api.ping.test.js
 
-# Install additional dependencies
-npm run install-deps
+# Run tests matching a pattern
+npm test -- --testNamePattern="ping"
+
+# Format code with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Build distributables
+npm run build
 ```
 
 ### Test Configuration
-- Tests are located in `tests/api.test.js`
-- Jest runs with default configuration (no config file found)
+
+- Tests are in `tests/` directory with pattern `*.test.js`
+- Jest runs with `--runInBand` (serial execution) due to Electron's single-process nature
 - Tests use supertest for HTTP API testing
-- Tests start an actual Electron MCP server on port 8102
-- SSE connections are established for real-time communication
+- Tests spawn actual Electron processes on dynamic ports
+- Auth token loaded from `~/electron-mcp-token.txt`
+- Test utilities in `tests/test-utils.js`
 
 ## Code Style Guidelines
 
 ### Language
-- This is a **CommonJS** project using `require()` syntax
-- No TypeScript - write plain JavaScript
-- Use ES6+ features (async/await, arrow functions, template literals)
+
+- **CommonJS** only - use `require()` not ES modules
+- Plain JavaScript - no TypeScript
+- ES6+ features: async/await, arrow functions, template literals
 
 ### File Organization
-- Main entry: `main.js` (Electron + MCP server)
-- Launcher: `start-mcp.js` (port management + Electron spawner)
-- Utilities: `snapshot-utils.js`, `call-snapshot.js`
-- Tests: `tests/api.test.js`
 
-### Imports
+```
+src/
+  main.js              # Main entry: Electron + Express + MCP server
+  config.js            # Configuration constants
+  tools/               # MCP tool implementations
+    ping.js
+    window-tools.js
+    cdp-tools.js
+    exec-js.js
+  utils/               # Utility modules
+    window-utils.js
+    window-monitor.js
+    cdp-utils.js
+    snapshot-utils.js
+    auth.js
+tests/                 # Test files
+  test-utils.js        # Shared test utilities
+  *.test.js            # Individual test files
+```
+
+### Imports Order
+
 ```javascript
-// Standard order:
-const { app, BrowserWindow } = require('electron');
-const http = require('http');
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { SSEServerTransport } = require("@modelcontextprotocol/sdk/server/sse.js");
+// 1. Built-in Node modules
+const fs = require("fs");
+const path = require("path");
+
+// 2. External dependencies
+const { BrowserWindow } = require("electron");
 const { z } = require("zod");
-const { captureSnapshot } = require('./snapshot-utils');
+const express = require("express");
+
+// 3. Internal modules
+const { config } = require("../config");
+const { createWindow } = require("../utils/window-utils");
 ```
 
 ### Naming Conventions
-- **Classes**: PascalCase (`ElectronMcpServer`)
-- **Functions/variables**: camelCase (`getWindows`, `httpServer`)
-- **Constants**: SCREAMING_SNAKE_CASE for true constants
+
+- **Classes**: PascalCase (`AuthManager`, `BrowserWindow`)
+- **Functions/variables**: camelCase (`getWindows`, `registerTool`)
+- **Constants**: SCREAMING_SNAKE_CASE (`PORT`, `LOGS_DIR`)
 - **Tool names**: snake_case (`open_window`, `get_windows`)
-- **Descriptive variable names** (avoid single letters except loop counters)
+- **File names**: kebab-case for tests (`api.ping.test.js`)
 
 ### Error Handling
-All tool handlers must return structured errors:
+
+All tool handlers must return structured MCP responses:
+
 ```javascript
 try {
   // ... operation
   return {
-    content: [{ type: "text", text: "success message" }],
+    content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
   };
 } catch (error) {
   return {
@@ -73,96 +117,131 @@ try {
 }
 ```
 
-### MCP Tool Schema
-Use Zod for input validation:
+### Tool Registration Pattern
+
 ```javascript
-this.registerTool(
-  "tool_name",
-  "Description of what the tool does",
-  {
-    param1: z.string().describe("Parameter description"),
-    param2: z.number().optional().default(1).describe("Optional with default"),
-  },
-  async ({ param1, param2 }) => {
-    return { content: [{ type: "text", text: "result" }] };
-  }
-);
+const { z } = require("zod");
+
+function registerTools(registerTool) {
+  registerTool(
+    "tool_name",
+    "Description of what the tool does",
+    z.object({
+      win_id: z.number().optional().default(1).describe("Window ID"),
+      param: z.string().describe("Required parameter"),
+    }),
+    async ({ win_id, param }) => {
+      try {
+        // Implementation
+        return { content: [{ type: "text", text: "result" }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+      }
+    },
+    { tag: "Category" } // OpenAPI grouping tag
+  );
+}
+
+module.exports = registerTools;
 ```
 
-### Response Format
-MCP responses use a consistent structure:
+### Response Formats
+
 ```javascript
 // Text response
 return { content: [{ type: "text", text: "message" }] };
 
+// JSON response
+return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+
 // Image response (NativeImage from Electron)
 return {
   content: [
-    { type: "text", text: `Captured Image: ${width}x${height}` },
-    { type: "image", data: base64String, mimeType: "image/png" }
-  ]
+    { type: "text", text: `Image: ${width}x${height}` },
+    { type: "image", data: base64String, mimeType: "image/png" },
+  ],
 };
 
 // Error response
-return { content: [{ type: "text", text: "error" }], isError: true };
+return { content: [{ type: "text", text: "error message" }], isError: true };
 ```
 
-### Async/Await
-- Use `async/await` over callbacks or `.then()`
-- Always handle promise rejections with try/catch
-- Add reasonable delays when waiting for Electron events
+### Common Patterns
 
-### Code Patterns
+#### Window Lookup
 
-#### Window Lookup Pattern
 ```javascript
 const win = BrowserWindow.fromId(win_id);
 if (!win) throw new Error(`Window ${win_id} not found`);
 ```
 
-#### Object Serialization
-Handle circular references when stringify:
+#### JSON Serialization with BigInt
+
 ```javascript
-outputText = JSON.stringify(result, (key, value) =>
-  typeof value === 'bigint' ? value.toString() : value, 2
-);
+JSON.stringify(result, (key, value) => (typeof value === "bigint" ? value.toString() : value), 2);
 ```
 
 #### NativeImage Handling
-Convert Electron NativeImage to MCP image format:
+
 ```javascript
-if (result.constructor.name === 'NativeImage') {
+if (result?.constructor.name === "NativeImage") {
   const size = result.getSize();
-  const base64 = result.toPNG().toString('base64');
+  const base64 = result.toPNG().toString("base64");
   return {
     content: [
-      { type: "text", text: `Captured Image: ${size.width}x${size.height}` },
-      { type: "image", data: base64, mimeType: "image/png" }
-    ]
+      { type: "text", text: `Image: ${size.width}x${size.height}` },
+      { type: "image", data: base64, mimeType: "image/png" },
+    ],
   };
 }
 ```
 
-### Console Logging
-Use consistent format for MCP operations:
+### Testing Patterns
+
 ```javascript
-console.log(`[MCP] SSE connection established, sessionId: ${transport.sessionId}`);
-console.error("[MCP] SSE connection error:", error);
+const { setPort, setupTest, teardownTest, sendRequest } = require("./test-utils");
+
+describe("Feature Test Suite", () => {
+  beforeAll(async () => {
+    setPort(8102); // Set test port
+    await setupTest(); // Start Electron + establish SSE
+  }, 30000);
+
+  afterAll(async () => {
+    await teardownTest(); // Cleanup
+  });
+
+  test("should do something", async () => {
+    const response = await sendRequest("tools/call", {
+      name: "tool_name",
+      arguments: { param: "value" },
+    });
+    expect(response.result).toBeDefined();
+  });
+});
 ```
 
-### Testing Patterns
-- Use Jest `describe` and `test` blocks
-- Tests are integration tests that spin up real servers
-- Clean up processes in `afterAll` hooks
-- Use `requestId` counter for correlating requests/responses
+### Logging
 
-### Electron Best Practices
-- `nodeIntegration: false` and `contextIsolation: true` in webPreferences
-- Use `app.whenReady()` for initialization
-- Handle `window-all-closed` event properly
-- Attach debugger with version string: `debugger.attach('1.3')`
+Use electron-log with consistent format:
+
+```javascript
+const log = require("electron-log");
+log.info("[MCP] Server starting");
+log.error("[MCP] Error:", error);
+```
 
 ### Security
+
 - Never log secrets or API keys
 - Validate all inputs with Zod schemas
-- Return structured errors without exposing internal details
+- Return structured errors without internal details
+- Auth token loaded from `~/electron-mcp-token.txt`
+
+### Electron Best Practices
+
+- Use `electronApp.whenReady()` for initialization
+- Handle `window-all-closed` event properly
+- Enable remote debugging with `--remote-debugging-port`
+- Use `nodeIntegration: false` and `contextIsolation: true`
+- Multi-account support via `partition: persist:sandbox-{accountIdx}`

@@ -1,0 +1,73 @@
+#!/bin/bash
+# curl-mcp - 轻量级 MCP RPC 调用工具，默认 YAML 格式
+
+METHOD="$1"
+shift
+
+# 检查是否使用 JSON 格式
+if [ "$1" = "--json" ] || [ "$1" = "-j" ]; then
+  USE_JSON=1
+  shift
+  PARAMS="$@"
+else
+  USE_JSON=0
+  PARAMS_INPUT="$@"
+fi
+
+if [ ! -f ~/electron-mcp-token.txt ]; then
+  echo "❌ Error: ~/electron-mcp-token.txt not found"
+  echo "Please contact admin to set token"
+  exit 1
+fi
+
+TOKEN=$(cat ~/electron-mcp-token.txt)
+
+if [ -z "$TOKEN" ]; then
+  echo "❌ Error: Token is empty in ~/electron-mcp-token.txt"
+  echo "Please contact admin to set token"
+  exit 1
+fi
+
+# 默认 YAML，转换为 JSON
+if [ "$USE_JSON" = "0" ]; then
+  # 检查是否安装了 yq
+  if ! command -v yq &> /dev/null; then
+    echo "❌ Error: yq not found. Install with: pip install yq --break-system-packages"
+    exit 1
+  fi
+  
+  PARAMS=$(echo "$PARAMS_INPUT" | yq -c .)
+  ACCEPT_HEADER="application/yaml"
+else
+  ACCEPT_HEADER="application/json"
+fi
+
+curl -s -X POST http://localhost:8101/rpc \
+  -H "Content-Type: application/json" \
+  -H "Accept: $ACCEPT_HEADER" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "{
+    \"jsonrpc\": \"2.0\",
+    \"id\": $$,
+    \"method\": \"$METHOD\",
+    \"params\": $PARAMS
+  }" | if [ "$USE_JSON" = "0" ]; then
+    # YAML 响应，直接提取 result.content
+    yq -r '.result.content[] | if .type == "text" then .text elif .type == "image" then "Image (\(.mimeType)): \(.data[:100])..." else . end'
+  else
+    # JSON 响应
+    jq -r '
+      if .result.content then
+        .result.content[] | 
+        if .type == "text" then
+          .text
+        elif .type == "image" then
+          "Image (\(.mimeType)): \(.data[:100])..."
+        else
+          .
+        end
+      else
+        .
+      end
+    '
+  fi

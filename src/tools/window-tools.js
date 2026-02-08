@@ -72,27 +72,38 @@ function registerTools(registerTool) {
         .optional()
         .default(0)
         .describe("窗口所在帐户,帐户可以是0,1,2,3...每个相同帐户下面的所有窗口共享缓存cookie等"),
+      reuseWindow: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("是否复用现有窗口。true=复用(默认)，false=创建新窗口"),
       options: z.object({}).optional().describe("Electron BrowserWindow options"),
     }),
-    async ({ url, accountIdx, options }) => {
-      // Check if oneWindow mode is enabled and window already exists
-      if (config.oneWindow) {
-        const existingWindows = BrowserWindow.getAllWindows();
-        if (existingWindows.length > 0) {
-          const win = createWindow({ url, ...options }, accountIdx);
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Window already exists (ID: ${win.id}), reusing it. URL load triggered. Please use tool: get_window_info and wait for webContents dom-ready`,
-              },
-            ],
-          };
-        }
+    async ({ url, accountIdx, reuseWindow, options }) => {
+      // Determine if we should create a new window
+      const forceNew = reuseWindow === false;
+      
+      // Get existing windows count before creating
+      const existingCount = BrowserWindow.getAllWindows().length;
+      
+      // Create or reuse window
+      const win = createWindow({ url, ...options }, accountIdx, forceNew);
+      
+      // Check if window was reused (count didn't change)
+      const newCount = BrowserWindow.getAllWindows().length;
+      const wasReused = newCount === existingCount;
+      
+      if (wasReused) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Window already exists (ID: ${win.id}), reusing it. URL load triggered. Please use tool: get_window_info and wait for webContents dom-ready`,
+            },
+          ],
+        };
       }
 
-      // Normal case: create new window
-      const win = createWindow({ url, ...options }, accountIdx);
       return {
         content: [
           {
@@ -183,6 +194,47 @@ function registerTools(registerTool) {
             : String(result);
 
         return { content: [{ type: "text", text: outputText }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+      }
+    },
+    { tag: "Window" }
+  );
+
+  registerTool(
+    "set_window_bounds",
+    "设置窗口的位置和大小。可以单独设置 x, y 坐标或 width, height 尺寸，也可以同时设置。坐标原点在屏幕左上角。",
+    z.object({
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
+      x: z.number().optional().describe("窗口 X 坐标（像素）"),
+      y: z.number().optional().describe("窗口 Y 坐标（像素）"),
+      width: z.number().optional().describe("窗口宽度（像素）"),
+      height: z.number().optional().describe("窗口高度（像素）"),
+    }),
+    async ({ win_id, x, y, width, height }) => {
+      try {
+        const win = BrowserWindow.fromId(win_id);
+        if (!win) throw new Error(`未找到窗口 ${win_id}`);
+
+        const currentBounds = win.getBounds();
+        const newBounds = {
+          x: x !== undefined ? x : currentBounds.x,
+          y: y !== undefined ? y : currentBounds.y,
+          width: width !== undefined ? width : currentBounds.width,
+          height: height !== undefined ? height : currentBounds.height,
+        };
+
+        win.setBounds(newBounds);
+        const updatedBounds = win.getBounds();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `窗口 ${win_id} 位置和大小已更新:\n${JSON.stringify(updatedBounds, null, 2)}`,
+            },
+          ],
+        };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }

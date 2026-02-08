@@ -220,8 +220,11 @@ app.get("/ping", (req, res) => {
   res.json({ ping: "pong", ts: Date.now() });
 });
 
-// OpenAPI spec - 无需认证，动态生成
+// OpenAPI spec - 无需认证，动态生成，默认 YAML
 app.get("/openapi.json", (req, res) => {
+  const acceptHeader = req.get('Accept') || 'application/yaml';
+  const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
+  
   const tools = Array.from(toolHandlers.keys()).map((name) => ({
     name: name,
     description: toolDescriptions.get(name) || "",
@@ -237,10 +240,6 @@ app.get("/openapi.json", (req, res) => {
       description: `REST API for Electron MCP tools - ${tools.length} tools available`,
     },
     servers: [
-      {
-        url: `http://localhost:${PORT}`,
-        description: "Local server",
-      },
       {
         url: "https://gcp-docs.cicy.de5.net",
         description: "Remote server",
@@ -304,6 +303,9 @@ app.get("/openapi.json", (req, res) => {
             "application/json": {
               schema: tool.schema,
             },
+            "application/yaml": {
+              schema: tool.schema,
+            },
           },
         },
         responses: {
@@ -327,6 +329,11 @@ app.get("/openapi.json", (req, res) => {
                   },
                 },
               },
+              "application/yaml": {
+                schema: {
+                  type: "string",
+                },
+              },
             },
           },
           404: { description: "Tool not found" },
@@ -336,7 +343,12 @@ app.get("/openapi.json", (req, res) => {
     };
   });
 
-  res.json(openapi);
+  if (useJson) {
+    res.json(openapi);
+  } else {
+    const yaml = require('js-yaml');
+    res.type('application/yaml').send(yaml.dump(openapi));
+  }
 });
 
 // 认证中间件
@@ -350,10 +362,10 @@ function authMiddleware(req, res, next) {
 }
 
 const mcpServer = new McpServer({
-  name: "electron-mcp",
-  version: "1.0.0",
-  description: "Electron MCP Server with browser automation tools",
-});
+    name: "electron-mcp",
+    version: "1.0.0",
+    description: "Electron MCP Server with browser automation tools",
+  });
 
 // 保存工具处理函数
 const toolHandlers = new Map();
@@ -419,6 +431,8 @@ function createTransport(res) {
 app.get("/mcp", authMiddleware, async (req, res) => {
   try {
     const transport = createTransport(res);
+    const mcpServer = createMcpServer(); // 为每个连接创建新的 server 实例
+    
     res.on("close", () => {
       delete transports[transport.sessionId];
     });
@@ -467,6 +481,8 @@ app.post("/messages", authMiddleware, async (req, res) => {
 app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
   try {
     const { method, params } = req.body;
+    const acceptHeader = req.get('Accept') || 'application/json';
+    const useYaml = acceptHeader.includes('application/yaml');
 
     if (method === "tools/call") {
       const { name, arguments: args } = params;
@@ -474,41 +490,75 @@ app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
       // 从 Map 中获取处理函数
       const handler = toolHandlers.get(name);
       if (!handler) {
-        return res.status(404).json({
+        const errorResponse = {
           jsonrpc: "2.0",
           id: req.body.id || 1,
           error: { message: `Tool not found: ${name}` },
-        });
+        };
+        
+        if (useYaml) {
+          const yaml = require('js-yaml');
+          res.type('application/yaml').send(yaml.dump(errorResponse));
+        } else {
+          res.status(404).json(errorResponse);
+        }
+        return;
       }
 
       // 直接调用处理函数
       const result = await handler(args);
 
-      res.json({
+      const response = {
         jsonrpc: "2.0",
         id: req.body.id || 1,
         result: result,
-      });
+      };
+
+      if (useYaml) {
+        const yaml = require('js-yaml');
+        res.type('application/yaml').send(yaml.dump(response));
+      } else {
+        res.json(response);
+      }
     } else {
       res.status(400).json({ error: "Unsupported method" });
     }
   } catch (error) {
     log.error("[RPC] Error:", error);
-    res.status(500).json({
+    const errorResponse = {
       jsonrpc: "2.0",
       id: req.body.id || 1,
       error: { message: error.message },
-    });
+    };
+    
+    const acceptHeader = req.get('Accept') || 'application/json';
+    if (acceptHeader.includes('application/yaml')) {
+      const yaml = require('js-yaml');
+      res.type('application/yaml').send(yaml.dump(errorResponse));
+    } else {
+      res.status(500).json(errorResponse);
+    }
   }
 });
 
 // RPC tools list - 返回所有可用工具
 app.get("/rpc/tools", authMiddleware, (req, res) => {
+  const acceptHeader = req.get('Accept') || 'application/yaml';
+  const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
+  
   const tools = Array.from(toolHandlers.keys()).map((name) => ({
     name: name,
     description: toolDescriptions.get(name) || "",
   }));
-  res.json({ tools });
+  
+  const result = { tools };
+  
+  if (useJson) {
+    res.json(result);
+  } else {
+    const yaml = require('js-yaml');
+    res.type('application/yaml').send(yaml.dump(result));
+  }
 });
 
 // RPC tools schemas - 返回所有工具的 schema（用于生成 OpenAPI）
@@ -533,20 +583,43 @@ app.post("/rpc/:toolName", authMiddleware, express.json(), async (req, res) => {
   try {
     const { toolName } = req.params;
     const args = req.body;
+    const acceptHeader = req.get('Accept') || 'application/yaml';
+    const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
 
     const handler = toolHandlers.get(toolName);
     if (!handler) {
-      return res.status(404).json({
+      const errorResponse = {
         error: `Tool not found: ${toolName}`,
         available: Array.from(toolHandlers.keys()),
-      });
+      };
+      
+      if (useJson) {
+        return res.status(404).json(errorResponse);
+      } else {
+        const yaml = require('js-yaml');
+        return res.status(404).type('application/yaml').send(yaml.dump(errorResponse));
+      }
     }
 
     const result = await handler(args);
-    res.json(result);
+    
+    if (useJson) {
+      res.json(result);
+    } else {
+      const yaml = require('js-yaml');
+      res.type('application/yaml').send(yaml.dump(result));
+    }
   } catch (error) {
     log.error(`[REST] Error calling ${req.params.toolName}:`, error);
-    res.status(500).json({ error: error.message });
+    const acceptHeader = req.get('Accept') || 'application/yaml';
+    const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
+    
+    if (useJson) {
+      res.status(500).json({ error: error.message });
+    } else {
+      const yaml = require('js-yaml');
+      res.status(500).type('application/yaml').send(yaml.dump({ error: error.message }));
+    }
   }
 });
 
@@ -705,11 +778,7 @@ electronApp.whenReady().then(() => {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}`,
-        description: "Local server",
-      },
-      {
-        url: "https://gcp-8101.cicy.de5.net",
+        url: "https://gcp-docs.cicy.de5.net",
         description: "Remote server",
       },
     ],
@@ -726,15 +795,10 @@ electronApp.whenReady().then(() => {
     paths: paths,
   };
 
-  // Swagger UI - 使用 /openapi.json（无需认证）
-  app.use(
-    "/docs",
-    swaggerUi.serve,
-    swaggerUi.setup(null, {
-      swaggerUrl: "/openapi.json",
-      customCss: ".swagger-ui .topbar { display: none }",
-    })
-  );
+  // Swagger UI - 使用自定义 HTML
+  app.get("/docs", (req, res) => {
+    res.sendFile(__dirname + "/swagger-ui.html");
+  });
 
   if (START_URL) {
     log.info(`[MCP] Opening window with URL: ${START_URL}`);
