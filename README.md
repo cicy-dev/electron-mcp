@@ -90,6 +90,9 @@ npm start -- --port=8102
 # 启动并打开浏览器窗口
 npm start -- --url=http://www.google.com
 
+# 单窗口模式（复用同一个窗口）
+npm start -- --one-window
+
 # 多账户模式启动（账户 0）
 npm start -- --url=http://example.com --account=0
 
@@ -97,7 +100,29 @@ npm start -- --url=http://example.com --account=0
 npm start -- --url=http://example.com --account=1
 
 # 组合使用
-npm start -- --port=8080 --url=http://example.com --account=2
+npm start -- --port=8080 --url=http://example.com --account=2 --one-window
+```
+
+### 使用 service.sh 管理服务
+
+```bash
+# 启动服务（后台运行，默认启用 --one-window）
+./service.sh start
+
+# 指定端口启动
+./service.sh start 8102
+
+# 查看服务状态
+./service.sh status
+
+# 查看日志
+./service.sh logs
+
+# 重启服务
+./service.sh restart
+
+# 停止服务
+./service.sh stop
 ```
 
 ### 运行测试
@@ -246,15 +271,25 @@ npm start -- --port=8102
 # 启动并打开浏览器窗口
 npm start -- --url=http://example.com
 
+# 单窗口模式（所有操作复用同一窗口）
+npm start -- --one-window
+
 # 指定账户（0-3）
 npm start -- --account=1
 
 # 组合使用
-npm start -- --port=8080 --url=http://example.com --account=2
+npm start -- --port=8080 --url=http://example.com --account=2 --one-window
 
 # 也可以使用环境变量
 PORT=8080 npm start
 ```
+
+### 单窗口模式 (--one-window)
+
+启用后，所有 `open_window` 调用都会复用现有窗口：
+- 如果窗口已存在，会将其赊到前台并加载新 URL
+- 如果当前 URL 与请求的 URL 相同，则刷新页面
+- 返回的消息会提示使用 `get_window_info` 检查 `dom-ready` 状态
 
 ### 日志文件
 
@@ -331,6 +366,21 @@ A: 格式为 `{accountIdx}-{win_id} | {页面标题}`：
 }
 ```
 
+### OpenAPI 文档
+
+访问 `/openapi.json` 获取完整的 OpenAPI 规范，工具按功能分组：
+
+| Tag | 工具类型 |
+|-----|------|
+| System | `ping` |
+| Window | 窗口管理工具 |
+| Input | CDP 输入操作 |
+| CDP | CDP 任意命令 |
+| Network | 网络监控工具 |
+| Console | 控制台日志 |
+| Screenshot | 截图工具 |
+| JavaScript | JS 执行工具 |
+
 ## 测试
 
 项目包含完整的测试套件，覆盖所有 MCP 工具：
@@ -371,9 +421,26 @@ electron-mcp/
 ### 添加新工具
 
 1. 在 `src/tools/` 目录创建新工具文件
-2. 使用 `registerTool()` 注册工具
+2. 使用 `registerTool()` 注册工具，支持指定 tag
 3. 在 tests 目录添加测试用例
 4. 更新 README.md
+
+```javascript
+// 工具注册示例
+registerTool(
+  "my_tool",
+  "工具描述",
+  z.object({
+    win_id: z.number().optional().default(1).describe("窗口 ID"),
+    param: z.string().describe("参数描述")
+  }),
+  async ({ win_id, param }) => {
+    // 工具实现
+    return { content: [{ type: "text", text: "result" }] };
+  },
+  { tag: "MyCategory" }  // 可选: 指定 OpenAPI 分组
+);
+```
 
 ### 窗口创建示例
 
