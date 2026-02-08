@@ -51,7 +51,7 @@ jobs:
           gh release delete alpha -y || true
           git push origin :refs/tags/alpha || true
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Create Alpha Release
         if: github.ref_type == 'branch'
@@ -68,7 +68,7 @@ jobs:
             
             **文件:** Electron.MCP.Setup.alpha.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Create Tag Release
         if: github.ref_type == 'tag'
@@ -82,4 +82,4 @@ jobs:
             
             标签版本构建
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
