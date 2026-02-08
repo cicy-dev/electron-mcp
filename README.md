@@ -88,6 +88,13 @@
 - `webpage_snapshot` - 网页快照（截图+HTML）
 - `session_download_url` - 下载文件到指定路径
 
+### 技能脚本 (Skills)
+
+- **download-douyin-video** - 抖音视频自动下载工具
+  - 自动捕获视频真实地址
+  - 一键下载到本地
+  - 详见 [skills/download-douyin-video/README.md](skills/download-douyin-video/README.md)
+
 ### 进程与端口工具
 
 - `process-utils` - 跨平台进程和端口管理工具
