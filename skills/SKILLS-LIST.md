@@ -2,6 +2,8 @@
 
 ## 服务管理
 
+### electron-mcp server
+
 ```bash
 bash service.sh start   # 启动服务
 bash service.sh stop    # 停止服务
