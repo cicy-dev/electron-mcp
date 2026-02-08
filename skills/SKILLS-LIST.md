@@ -1,5 +1,22 @@
 # Skills List
 
+## 服务管理
+
+```bash
+bash service.sh start   # 启动服务
+bash service.sh stop    # 停止服务
+bash service.sh status  # 查看状态
+bash service.sh logs    # 查看日志
+bash service.sh restart # 重启服务
+```
+
+**验证服务:**
+```bash
+curl-rpc "tools/call" "name: ping"  # 应返回 "Pong"
+```
+
+---
+
 ## 可用技能
 
 ### curl-rpc
