@@ -85,9 +85,9 @@ async function setupTest() {
   
   // CI 环境中禁用沙箱
   if (process.env.CI || process.env.ELECTRON_DISABLE_SANDBOX) {
-    // electronArgs.push("--no-sandbox");
-    // electronArgs.push("--disable-setuid-sandbox");
-    // log("DEBUG", "  Running in CI mode with sandbox disabled");
+    electronArgs.push("--no-sandbox");
+    electronArgs.push("--disable-setuid-sandbox");
+    log("DEBUG", "  Running in CI mode with sandbox disabled");
   }
   
   electronProcess = spawn("electron", electronArgs, {
