@@ -3,7 +3,14 @@
 set -e
 
 echo "Installing electron globally..."
-sudo npm install -g electron
+
+# 检测是否有 sudo 命令（Linux/macOS）
+if command -v sudo &> /dev/null; then
+  sudo npm install -g electron
+else
+  # Windows 或无 sudo 环境
+  npm install -g electron
+fi
 
 if [ "$(uname)" = "Linux" ]; then
   echo "Fixing chrome-sandbox permissions on Linux..."
@@ -12,9 +19,13 @@ if [ "$(uname)" = "Linux" ]; then
   SANDBOX_PATH="$ELECTRON_DIR/../lib/node_modules/electron/dist/chrome-sandbox"
   
   if [ -f "$SANDBOX_PATH" ]; then
-    sudo chown root:root "$SANDBOX_PATH"
-    sudo chmod 4755 "$SANDBOX_PATH"
-    echo "chrome-sandbox permissions fixed"
+    if command -v sudo &> /dev/null; then
+      sudo chown root:root "$SANDBOX_PATH"
+      sudo chmod 4755 "$SANDBOX_PATH"
+      echo "chrome-sandbox permissions fixed"
+    else
+      echo "Warning: sudo not available, skipping chrome-sandbox permissions"
+    fi
   else
     echo "Warning: chrome-sandbox not found at $SANDBOX_PATH"
   fi
