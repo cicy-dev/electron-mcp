@@ -11,6 +11,8 @@ const {
 } = require("../utils/window-monitor");
 const { captureSnapshot } = require("../utils/snapshot-utils");
 const { createWindow, getWindowInfo } = require("../utils/window-utils");
+const { config } = require("../config");
+
 function registerTools(registerTool) {
   registerTool(
     "get_windows",
@@ -40,13 +42,14 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
     "get_window_info",
     "获取指定窗口的详细信息",
-    z.object({ win_id: z.number().describe("Window ID") }),
+    z.object({ win_id: z.number().optional().default(1).describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -55,7 +58,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
@@ -68,10 +72,38 @@ function registerTools(registerTool) {
         .optional()
         .default(0)
         .describe("窗口所在帐户,帐户可以是0,1,2,3...每个相同帐户下面的所有窗口共享缓存cookie等"),
+      reuseWindow: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("是否复用现有窗口。true=复用(默认)，false=创建新窗口"),
       options: z.object({}).optional().describe("Electron BrowserWindow options"),
     }),
-    async ({ url, accountIdx, options }) => {
-      const win = createWindow({ url, ...options }, accountIdx);
+    async ({ url, accountIdx, reuseWindow, options }) => {
+      // Determine if we should create a new window
+      const forceNew = reuseWindow === false;
+      
+      // Get existing windows count before creating
+      const existingCount = BrowserWindow.getAllWindows().length;
+      
+      // Create or reuse window
+      const win = createWindow({ url, ...options }, accountIdx, forceNew);
+      
+      // Check if window was reused (count didn't change)
+      const newCount = BrowserWindow.getAllWindows().length;
+      const wasReused = newCount === existingCount;
+      
+      if (wasReused) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Window already exists (ID: ${win.id}), reusing it. URL load triggered. Please use tool: get_window_info and wait for webContents dom-ready`,
+            },
+          ],
+        };
+      }
+
       return {
         content: [
           {
@@ -80,13 +112,14 @@ function registerTools(registerTool) {
           },
         ],
       };
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
     "close_window",
     "关闭窗口",
-    z.object({ win_id: z.number().describe("Window ID") }),
+    z.object({ win_id: z.number().optional().default(1).describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -98,7 +131,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
@@ -118,13 +152,14 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
     "get_title",
     "获取窗口标题",
-    z.object({ win_id: z.number().describe("Window ID") }),
+    z.object({ win_id: z.number().optional().default(1).describe("Window ID") }),
     async ({ win_id }) => {
       try {
         const win = BrowserWindow.fromId(win_id);
@@ -133,7 +168,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
@@ -148,7 +184,7 @@ function registerTools(registerTool) {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
         const execute = new AsyncFunction("win", "webContents", `return ${code}`);
         const result = await execute(win, win.webContents);
 
@@ -161,7 +197,49 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
+  );
+
+  registerTool(
+    "set_window_bounds",
+    "设置窗口的位置和大小。可以单独设置 x, y 坐标或 width, height 尺寸，也可以同时设置。坐标原点在屏幕左上角。",
+    z.object({
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
+      x: z.number().optional().describe("窗口 X 坐标（像素）"),
+      y: z.number().optional().describe("窗口 Y 坐标（像素）"),
+      width: z.number().optional().describe("窗口宽度（像素）"),
+      height: z.number().optional().describe("窗口高度（像素）"),
+    }),
+    async ({ win_id, x, y, width, height }) => {
+      try {
+        const win = BrowserWindow.fromId(win_id);
+        if (!win) throw new Error(`未找到窗口 ${win_id}`);
+
+        const currentBounds = win.getBounds();
+        const newBounds = {
+          x: x !== undefined ? x : currentBounds.x,
+          y: y !== undefined ? y : currentBounds.y,
+          width: width !== undefined ? width : currentBounds.width,
+          height: height !== undefined ? height : currentBounds.height,
+        };
+
+        win.setBounds(newBounds);
+        const updatedBounds = win.getBounds();
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `窗口 ${win_id} 位置和大小已更新:\n${JSON.stringify(updatedBounds, null, 2)}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+      }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
@@ -176,7 +254,7 @@ function registerTools(registerTool) {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
         const execute = new AsyncFunction("webContents", "win", `return ${code}`);
         let result = await execute(win.webContents, win);
 
@@ -200,14 +278,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Window" }
   );
 
   registerTool(
     "get_console_logs",
     "获取窗口的控制台日志。返回自窗口创建或上次重载以来的所有 console 输出，包括 log/info/warning/error 等级别。支持分页查询和过滤。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
       page_size: z.number().optional().default(50).describe("每页数量"),
       keyword: z.string().optional().describe("关键词过滤，匹配日志消息"),
@@ -216,17 +295,17 @@ function registerTools(registerTool) {
     async ({ win_id, page, page_size, keyword, level }) => {
       try {
         let logs = getConsoleLogs(win_id);
-        
+
         // 关键词过滤
         if (keyword) {
           logs = logs.filter(log => log.message.includes(keyword));
         }
-        
+
         // 级别过滤
         if (level) {
           logs = logs.filter(log => log.level === level);
         }
-        
+
         const start = (page - 1) * page_size;
         const end = start + page_size;
         const paginated = logs.slice(start, end);
@@ -241,14 +320,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Console" }
   );
 
   registerTool(
     "get_requests",
     "获取窗口的网络请求记录。返回所有请求的详细信息（包含文件路径）。支持 URL 过滤和分页。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
       page_size: z.number().optional().default(50).describe("每页数量"),
       filter: z.string().optional().describe("URL 过滤关键词（支持正则表达式）"),
@@ -263,7 +343,7 @@ function registerTools(registerTool) {
           requests: data.requests || [],
           responses: data.responses || []
         }));
-        
+
         // 应用过滤
         if (filter) {
           try {
@@ -273,11 +353,11 @@ function registerTools(registerTool) {
             entries = entries.filter(entry => entry.url.includes(filter));
           }
         }
-        
+
         const start = (page - 1) * page_size;
         const end = start + page_size;
         const paginated = entries.slice(start, end);
-        
+
         const result = {
           total: entries.length,
           page: page,
@@ -289,14 +369,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
     "filter_requests",
     "根据关键词或文档类型过滤网络请求。搜索 URL、POST data 或按文档类型筛选。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       keyword: z.string().optional().describe("搜索关键词（可选）"),
       doc_type: z
         .string()
@@ -366,14 +447,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
     "get_request_detail",
     "获取指定请求的详细信息，包括请求头和请求体。使用请求的 index 来查询。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       index: z.number().describe("请求的 index"),
     }),
     async ({ win_id, index }) => {
@@ -414,14 +496,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
     "session_download_url",
     "使用窗口的 session 下载文件到指定路径。不会弹出保存对话框，下载完成后文件直接保存到 save_path。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       url: z.string().describe("下载 URL"),
       save_path: z.string().describe("保存路径（完整路径包含文件名），下载完成后文件保存在此路径"),
       timeout: z.number().optional().default(300000).describe("超时时间（毫秒），默认 5 分钟"),
@@ -507,7 +590,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
@@ -544,7 +628,8 @@ function registerTools(registerTool) {
           isError: true,
         };
       }
-    }
+    },
+    { tag: "Screenshot" }
   );
 
   registerTool(
@@ -691,14 +776,15 @@ function registerTools(registerTool) {
           isError: true,
         };
       }
-    }
+    },
+    { tag: "Screenshot" }
   );
 
   registerTool(
     "get_request_urls",
     "获取窗口的所有请求 URL 列表（队列）。支持 URL 过滤。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       page: z.number().optional().default(1).describe("页码，从1开始"),
       page_size: z.number().optional().default(100).describe("每页数量"),
       filter: z.string().optional().describe("URL 过滤关键词（支持正则表达式）"),
@@ -706,7 +792,7 @@ function registerTools(registerTool) {
     async ({ win_id, page, page_size, filter }) => {
       try {
         let urls = getBeforeSendRequests(win_id);
-        
+
         // 应用过滤
         if (filter) {
           try {
@@ -717,7 +803,7 @@ function registerTools(registerTool) {
             urls = urls.filter(url => url.includes(filter));
           }
         }
-        
+
         const start = (page - 1) * page_size;
         const end = start + page_size;
         const paginated = urls.slice(start, end);
@@ -732,14 +818,15 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
     "get_request_detail_by_url",
     "根据 URL 获取请求的完整详情。返回该 URL 的所有请求和响应的文件路径列表。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
       url: z.string().describe("请求的完整 URL"),
     }),
     async ({ win_id, url }) => {
@@ -748,7 +835,7 @@ function registerTools(registerTool) {
         if (!detail) {
           return { content: [{ type: "text", text: `Request not found for URL: ${url}` }], isError: true };
         }
-        
+
         // 返回文件路径列表，用户可以自己读取文件
         const result = {
           url,
@@ -757,19 +844,20 @@ function registerTools(registerTool) {
           requests: detail.requests || [],
           responses: detail.responses || []
         };
-        
+
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 
   registerTool(
     "clear_requests",
     "清空指定窗口的所有请求记录（仅清空内存，不删除已保存的文件）。",
     z.object({
-      win_id: z.number().describe("窗口 ID"),
+      win_id: z.number().optional().default(1).describe("窗口 ID"),
     }),
     async ({ win_id }) => {
       try {
@@ -778,7 +866,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Network" }
   );
 }
 

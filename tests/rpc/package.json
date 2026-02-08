@@ -1,0 +1,21 @@
+{
+  "name": "electron-mcp-rpc-tests",
+  "version": "1.0.0",
+  "description": "RPC endpoint tests for Electron MCP",
+  "scripts": {
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "testMatch": ["**/rpc/**/*.test.js"],
+    "maxWorkers": 1
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}

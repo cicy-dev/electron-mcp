@@ -1,6 +1,19 @@
 # Electron MCP Server
 
-基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。支持多账户隔离、会话管理和丰富的 CDP 操作。
+基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。支持多账户隔离、会话管理、丰富的 CDP 操作，以及 **YAML/JSON 双格式支持**。
+
+## ✨ 核心特性
+
+- 🚀 **YAML 优先** - 默认 YAML 格式，节省 30-45% token
+- 🔥 **热重载** - 修改工具代码无需重启 Electron
+- 🪟 **窗口管理** - 多窗口支持，智能复用
+- 👤 **多账户隔离** - Cookie/Storage 完全隔离
+- 🎯 **CDP 操作** - 鼠标、键盘、页面控制
+- 📸 **截图与监控** - 网络请求、控制台日志
+- 🔧 **轻量工具** - curl-rpc 命令行工具
+- 🧩 **模块化架构** - 清晰的代码组织，易于维护
+- ⚡ **执行工具** - Shell/Python/npm 命令执行
+- 📋 **剪贴板操作** - 文本和图片的读写
 
 ## 功能特性
 
@@ -12,10 +25,11 @@
 
 - `get_windows` - 获取所有窗口列表和详细信息
 - `get_window_info` - 获取指定窗口详细信息
-- `open_window` - 打开新窗口（支持多账户隔离）
+- `open_window` - 打开新窗口（支持多账户隔离，默认复用窗口）
 - `close_window` - 关闭窗口
 - `load_url` - 加载 URL
 - `get_title` - 获取窗口标题
+- `set_window_bounds` - 设置窗口位置和大小
 - `control_electron_BrowserWindow` - 直接控制 BrowserWindow
 - `control_electron_WebContents` - 直接控制 WebContents
 
@@ -30,10 +44,23 @@
 - `cdp_press_enter` - 按下回车键
 - `cdp_press_backspace` - 按下退格键
 - `cdp_press_copy` - 复制 (Ctrl+C)
-- `cdp_press_paste` - 粘贴 (Ctrl+V)
+- `cdp_press_paste` - 粘贴 (支持 sendInputEvent/CDP/JS 三种方法)
 - `cdp_press_selectall` - 全选 (Ctrl+A)
 - `cdp_press_cut` - 剪切 (Ctrl+X)
 - `cdp_type_text` - 输入文本
+
+### 剪贴板操作
+
+- `clipboard_write_text` - 写入文本到剪贴板
+- `clipboard_read_text` - 读取剪贴板文本
+- `clipboard_write_image` - 写入图片到剪贴板
+- `test_paste_methods` - 测试三种粘贴方法
+
+### 执行工具
+
+- `exec_shell` - 执行 Shell 命令
+- `exec_python` - 执行 Python 代码
+- `exec_npm` - 执行 npm 命令
 
 ### CDP 页面操作
 
@@ -90,6 +117,9 @@ npm start -- --port=8102
 # 启动并打开浏览器窗口
 npm start -- --url=http://www.google.com
 
+# 单窗口模式（复用同一个窗口）
+npm start -- --one-window
+
 # 多账户模式启动（账户 0）
 npm start -- --url=http://example.com --account=0
 
@@ -97,7 +127,32 @@ npm start -- --url=http://example.com --account=0
 npm start -- --url=http://example.com --account=1
 
 # 组合使用
-npm start -- --port=8080 --url=http://example.com --account=2
+npm start -- --port=8080 --url=http://example.com --account=2 --one-window
+```
+
+### 使用 service.sh 管理服务
+
+```bash
+# 启动服务（后台运行，默认 DISPLAY :2）
+./service.sh start
+
+# 指定端口启动
+./service.sh start 8102
+
+# 指定端口和 DISPLAY
+./service.sh start 8102 :1
+
+# 查看服务状态
+./service.sh status
+
+# 查看日志
+./service.sh logs
+
+# 重启服务
+./service.sh restart
+
+# 停止服务
+./service.sh stop
 ```
 
 ### 运行测试
@@ -169,20 +224,104 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 ## 使用示例
 
+### 命令行工具 (curl-rpc)
+
+快速调用 MCP 工具的轻量级命令行工具，**默认使用 YAML 格式**（节省 30-45% token）：
+
+```bash
+# 安装到 ~/.local/bin
+curl -o ~/.local/bin/curl-rpc https://raw.githubusercontent.com/cicy-dev/electron-mcp/main/bin/curl-rpc
+chmod +x ~/.local/bin/curl-rpc
+
+# 安装依赖（YAML 支持）
+pip install yq --break-system-packages
+
+# 设置 token（首次使用）
+echo "your-token-here" > ~/electron-mcp-token.txt
+
+# YAML 格式（默认，推荐）
+curl-rpc "tools/call" "
+name: open_window
+arguments:
+  url: https://google.com
+"
+
+# 设置窗口大小和位置
+curl-rpc "tools/call" "
+name: set_window_bounds
+arguments:
+  win_id: 1
+  x: 1320
+  y: 0
+  width: 360
+  height: 720
+"
+
+# 复用窗口（默认行为）
+curl-rpc "tools/call" "
+name: open_window
+arguments:
+  url: https://github.com
+"
+
+# 强制创建新窗口
+curl-rpc "tools/call" "
+name: open_window
+arguments:
+  url: https://github.com
+  reuseWindow: false
+"
+
+# JSON 格式（需要 --json 或 -j 标志）
+curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
+
+# 重新加载窗口
+curl-rpc "tools/call" --json '{"name":"control_electron_WebContents","arguments":{"win_id":1,"code":"webContents.reload()"}}'
+```
+
+**格式对比：**
+
+YAML（~70 字符）：
+```yaml
+name: open_window
+arguments:
+  url: https://google.com
+  reuseWindow: false
+```
+
+JSON（~100 字符）：
+```json
+{"name":"open_window","arguments":{"url":"https://google.com","reuseWindow":false}}
+```
+
+**节省约 30% token！**
+
 ### 窗口管理
 
 ```javascript
 // 获取所有窗口
 { "name": "get_windows", "arguments": {} }
 
-// 打开新窗口（默认账户0）
+// 打开新窗口（默认复用现有窗口）
 { "name": "open_window", "arguments": { "url": "https://www.google.com" } }
+
+// 打开新窗口（强制创建新窗口）
+{ "name": "open_window", "arguments": { "url": "https://www.google.com", "reuseWindow": false } }
 
 // 打开新窗口（账户1）
 { "name": "open_window", "arguments": { "url": "https://mail.google.com", "accountIdx": 1 } }
 
 // 获取窗口信息（包含账户ID）
 { "name": "get_window_info", "arguments": { "win_id": 1 } }
+
+// 设置窗口位置和大小
+{ "name": "set_window_bounds", "arguments": { "win_id": 1, "x": 100, "y": 100, "width": 1280, "height": 720 } }
+
+// 只设置位置
+{ "name": "set_window_bounds", "arguments": { "win_id": 1, "x": 0, "y": 0 } }
+
+// 只设置大小
+{ "name": "set_window_bounds", "arguments": { "win_id": 1, "width": 1920, "height": 1080 } }
 ```
 
 ### CDP 操作
@@ -246,15 +385,25 @@ npm start -- --port=8102
 # 启动并打开浏览器窗口
 npm start -- --url=http://example.com
 
+# 单窗口模式（所有操作复用同一窗口）
+npm start -- --one-window
+
 # 指定账户（0-3）
 npm start -- --account=1
 
 # 组合使用
-npm start -- --port=8080 --url=http://example.com --account=2
+npm start -- --port=8080 --url=http://example.com --account=2 --one-window
 
 # 也可以使用环境变量
 PORT=8080 npm start
 ```
+
+### 单窗口模式 (--one-window)
+
+启用后，所有 `open_window` 调用都会复用现有窗口：
+- 如果窗口已存在，会将其赊到前台并加载新 URL
+- 如果当前 URL 与请求的 URL 相同，则刷新页面
+- 返回的消息会提示使用 `get_window_info` 检查 `dom-ready` 状态
 
 ### 日志文件
 
@@ -331,6 +480,21 @@ A: 格式为 `{accountIdx}-{win_id} | {页面标题}`：
 }
 ```
 
+### OpenAPI 文档
+
+访问 `/openapi.json` 获取完整的 OpenAPI 规范，工具按功能分组：
+
+| Tag | 工具类型 |
+|-----|------|
+| System | `ping` |
+| Window | 窗口管理工具 |
+| Input | CDP 输入操作 |
+| CDP | CDP 任意命令 |
+| Network | 网络监控工具 |
+| Console | 控制台日志 |
+| Screenshot | 截图工具 |
+| JavaScript | JS 执行工具 |
+
 ## 测试
 
 项目包含完整的测试套件，覆盖所有 MCP 工具：
@@ -353,7 +517,15 @@ npm test -- api.exec-js.test.js
 ```
 electron-mcp/
 ├── src/
-│   ├── main.js              # 主入口，Electron + MCP 服务器
+│   ├── main.js              # 主入口（模块化）
+│   ├── config.js            # 配置文件
+│   ├── server/              # 服务器模块
+│   │   ├── electron-setup.js    # Electron 配置
+│   │   ├── args-parser.js       # 参数解析
+│   │   ├── logging.js           # 日志系统
+│   │   ├── express-app.js       # Express 应用
+│   │   ├── mcp-server.js        # MCP 服务器
+│   │   └── tool-registry.js     # 工具注册
 │   ├── tools/               # MCP 工具实现
 │   │   ├── window-tools.js  # 窗口管理工具
 │   │   ├── cdp-tools.js     # CDP 操作工具
@@ -365,15 +537,49 @@ electron-mcp/
 │       ├── cdp-utils.js         # CDP 封装
 │       └── snapshot-utils.js    # 截图工具
 ├── tests/                   # 测试文件
+├── bin/                     # 命令行工具
+│   └── curl-rpc            # YAML/JSON RPC 客户端
 └── package.json
+```
+
+### 热重载开发
+
+修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，下次调用工具时自动加载最新代码。
+
+```bash
+# 启动服务
+./service.sh start
+
+# 修改工具代码
+vim src/tools/ping.js
+
+# 直接测试，自动使用新代码
+curl-rpc "tools/call" "name: ping"
 ```
 
 ### 添加新工具
 
 1. 在 `src/tools/` 目录创建新工具文件
-2. 使用 `registerTool()` 注册工具
+2. 使用 `registerTool()` 注册工具，支持指定 tag
 3. 在 tests 目录添加测试用例
 4. 更新 README.md
+
+```javascript
+// 工具注册示例
+registerTool(
+  "my_tool",
+  "工具描述",
+  z.object({
+    win_id: z.number().optional().default(1).describe("窗口 ID"),
+    param: z.string().describe("参数描述")
+  }),
+  async ({ win_id, param }) => {
+    // 工具实现
+    return { content: [{ type: "text", text: "result" }] };
+  },
+  { tag: "MyCategory" }  // 可选: 指定 OpenAPI 分组
+);
+```
 
 ### 窗口创建示例
 
@@ -396,6 +602,12 @@ const info = getWindowInfo(win1);
 //   ...
 // }
 ```
+
+## 文档
+
+- [YAML 支持](docs/yaml.md) - YAML/JSON 双格式说明
+- [API 文档](http://localhost:8101/docs) - REST API 文档
+- [OpenAPI 规范](openapi.yml) - OpenAPI 3.0 规范
 
 ## 许可证
 
