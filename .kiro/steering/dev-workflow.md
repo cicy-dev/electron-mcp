@@ -37,12 +37,13 @@ inclusion: always
 ### 阶段2：环境准备（用户说"开始"后执行）
 ```bash
 # 分支命名规范：
-# - 新功能：feat/YYYYMMDD-功能简述
-# - Bug修复：fix/YYYYMMDD-问题简述
+# - 新功能：feat-MMDD-功能简述
+# - Bug修复：fix-MMDD-问题简述
 
 # 1. 直接在工作目录克隆并创建分支
-git clone ~/Desktop/projects/electron-mcp ~/Desktop/branch/electron-mcp-<branch-name>
-cd ~/Desktop/branch/electron-mcp-<branch-name>
+mkdir -p ~/projects/electron-mcp/branches/
+git clone -b origin/main git@github.com:cicy-dev/electron-mcp.git ~/projects/electron-mcp/branches/<branch-name>
+cd ~/projects/electron-mcp/branches/<branch-name>
 git fetch origin
 git checkout -b <branch-name> origin/main
 
@@ -77,7 +78,7 @@ npm install
 ### 阶段4：开发实现
 ```bash
 # 在工作目录进行开发
-cd ~/Desktop/branch/electron-mcp-<branch-name>
+cd ~/projects/electron-mcp/branches/<branch-name>
 
 # ⚠️ 必须遵循：一功能一测试
 # ❌ 禁止：写完所有代码再测试
@@ -129,24 +130,24 @@ gh pr create --base main --head <branch-name> --title "标题" --body "详细描
 ## 分支命名示例
 
 ### 新功能
-- `feat/20260206-add-cdp-scroll`
-- `feat/20260206-multi-account-support`
-- `feat/20260206-network-monitor`
+- `feat-0206-add-cdp-scroll`
+- `feat-0206-multi-account-support`
+- `feat-0206-network-monitor`
 
 ### Bug修复
-- `fix/20260206-window-close-crash`
-- `fix/20260206-screenshot-memory-leak`
-- `fix/20260206-test-timeout`
+- `fix-0206-window-close-crash`
+- `fix-0206-screenshot-memory-leak`
+- `fix-0206-test-timeout`
 
 ## 工作目录结构
 ```
-~/Desktop/
+~/
 ├── projects/
-│   └── electron-mcp/              # 主仓库
-└── branch/
-    ├── electron-mcp-feat-20260206-feature1/
-    ├── electron-mcp-fix-20260206-bug1/
-    └── electron-mcp-feat-20260206-feature2/
+│   └── electron-mcp/main             # 主仓库
+└── projects/electron-mcp/branches/
+    ├── feat-0206-feature1/
+    ├── fix-0206-bug1/
+    └── feat-0206-feature2/
 ```
 
 ## 核心原则
