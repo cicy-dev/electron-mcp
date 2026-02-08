@@ -43,7 +43,8 @@ inclusion: always
 # 1. 直接在工作目录克隆并创建分支
 mkdir -p ~/projects/electron-mcp/branches/
 git clone -b origin/main git@github.com:cicy-dev/electron-mcp.git ~/projects/electron-mcp/branches/<branch-name>
-cd ~/projects/electron-mcp/branches/<branch-name>
+sudo ln -s /<branch-name> ~/projects/electron-mcp/branches/<branch-name>
+cd /<branch-name>
 git fetch origin
 git checkout -b <branch-name> origin/main
 
@@ -78,7 +79,7 @@ npm install
 ### 阶段4：开发实现
 ```bash
 # 在工作目录进行开发
-cd ~/projects/electron-mcp/branches/<branch-name>
+cd /<branch-name>
 
 # ⚠️ 必须遵循：一功能一测试
 # ❌ 禁止：写完所有代码再测试

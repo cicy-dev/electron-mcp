@@ -1,58 +1,107 @@
 # 抖音视频下载
 
-自动下载抖音视频到本地。
+使用 `curl-rpc` 下载抖音视频的方法。
 
-## 使用方法
+## 快速开始
 
 ```bash
-# 1. 启动服务
-cd /path/to/electron-mcp
-DISPLAY=:1 npm start -- --no-sandbox
+# 0. 启动服务（首次使用）
+bash skills/electron-mcp-service/service.sh start
 
-# 2. 下载视频
-bash skills/download-douyin-video/download-douyin-video.sh <抖音视频URL>
+# 1. 打开抖音视频页面
+curl-rpc open_window url=https://www.douyin.com/video/7594434780347813155
 
-# 3. 查看结果
-ls ~/Desktop/video/
+# 2. 等待页面加载（8秒）
+sleep 8
+
+# 3. 提取视频 URL
+curl-rpc "
+name: exec_js
+arguments:
+  win_id: 1
+  code: 'Array.from(document.querySelectorAll(\"video\")).map(v => v.currentSrc)'
+"
+
+# 4. 下载视频（复制上一步输出的 URL）
+mkdir -p ~/Desktop/video
+curl -L -o ~/Desktop/video/video.mp4 "<视频URL>"
+```
+
+## 完整示例
+
+```bash
+# 一键下载（需要先启动服务）
+VIDEO_URL="https://www.douyin.com/video/7594434780347813155"
+
+# 打开页面
+curl-rpc open_window url=$VIDEO_URL
+
+# 等待加载
+sleep 8
+
+# 获取视频 URL 并下载
+VIDEO_SRC=$(curl-rpc "
+name: exec_js
+arguments:
+  win_id: 1
+  code: 'Array.from(document.querySelectorAll(\"video\")).map(v => v.currentSrc)[0]'
+")
+
+# 下载
+mkdir -p ~/Desktop/video
+curl -L -o ~/Desktop/video/$(basename $VIDEO_URL).mp4 "$VIDEO_SRC"
 ```
 
 ## 示例
 
 ```bash
-# 基本用法
-bash skills/download-douyin-video/download-douyin-video.sh \
-  https://www.douyin.com/video/7594434780347813155
+# 示例 1: 下载单个视频
+curl-rpc open_window url=https://www.douyin.com/video/7594434780347813155
+sleep 8
+curl-rpc "
+name: exec_js
+arguments:
+  win_id: 1
+  code: 'Array.from(document.querySelectorAll(\"video\")).map(v => v.currentSrc)'
+"
 
-# 自定义目录
-DOWNLOAD_DIR=~/Downloads bash skills/download-douyin-video/download-douyin-video.sh <url>
-
-# 批量下载
-while read url; do bash skills/download-douyin-video/download-douyin-video.sh "$url"; done < urls.txt
+# 示例 2: 批量下载
+for url in url1 url2 url3; do
+  curl-rpc open_window url=$url
+  sleep 8
+  curl-rpc "
+name: exec_js
+arguments:
+  win_id: 1
+  code: 'Array.from(document.querySelectorAll(\"video\")).map(v => v.currentSrc)'
+"
+done
 ```
 
-## 环境变量
+## 常见问题
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `DOWNLOAD_DIR` | `~/Desktop/video` | 保存目录 |
-| `WAIT_TIME` | `8` | 页面加载等待时间（秒） |
-| `ELECTRON_MCP_URL` | `http://localhost:8101` | 服务地址 |
-
-## 依赖
-
-- electron-mcp 服务运行中
-- jq 已安装：`sudo apt-get install jq`
-
-## 故障排查
-
-**服务未运行：**
+**Q: 如何调整等待时间？**
 ```bash
-curl http://localhost:8101/mcp  # 验证服务
+sleep 15  # 增加到 15 秒
 ```
 
-**找不到视频：**
+**Q: 如何检查页面是否加载完成？**
 ```bash
-WAIT_TIME=15 bash download-douyin-video.sh <url>  # 增加等待时间
+curl-rpc get_window_info win_id=1
+# 查看 isDomReady 和 isLoading 字段
 ```
 
-**详细文档：** [download-douyin-video.md](./download-douyin-video.md)
+**Q: 如何获取视频标题？**
+```bash
+curl-rpc "
+name: exec_js
+arguments:
+  win_id: 1
+  code: 'document.title'
+"
+```
+
+**Q: 视频 URL 为空怎么办？**
+- 增加等待时间
+- 检查页面是否需要登录
+- 查看浏览器控制台是否有错误

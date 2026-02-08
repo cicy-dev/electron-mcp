@@ -4,8 +4,9 @@
 
 ## ✨ 核心特性
 
-- 🚀 **YAML 优先** - 默认 YAML 格式，节省 30-45% token
-- 🔥 **热重载** - 修改工具代码无需重启 Electron
+- 🚀 **简化语法** - `curl-rpc tool_name key=value`，最简洁
+- 📝 **YAML 优先** - 默认 YAML 格式，节省 30% token
+- 🔥 **手动热重载** - `curl-rpc r-reset` 清除缓存，无需重启
 - 🪟 **窗口管理** - 多窗口支持，智能复用
 - 👤 **多账户隔离** - Cookie/Storage 完全隔离
 - 🎯 **CDP 操作** - 鼠标、键盘、页面控制
@@ -244,7 +245,7 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 ### 命令行工具 (curl-rpc)
 
-快速调用 MCP 工具的轻量级命令行工具，**默认使用 YAML 格式**（节省 30-45% token）：
+快速调用 MCP 工具的轻量级命令行工具，**支持简化语法和 YAML/JSON 双格式**：
 
 ```bash
 # 安装到 ~/.local/bin
@@ -257,62 +258,53 @@ pip install yq --break-system-packages
 # 设置 token（首次使用）
 echo "your-token-here" > ~/electron-mcp-token.txt
 
-# YAML 格式（默认，推荐）
+# 简化语法（推荐）
+curl-rpc ping
+curl-rpc open_window url=https://google.com
+curl-rpc get_window_info win_id=1
+curl-rpc set_window_bounds win_id=1 x=100 y=100 width=1280 height=720
+curl-rpc cdp_click win_id=1 x=500 y=300
+curl-rpc cdp_type_text win_id=1 text="Hello World"
+curl-rpc close_window win_id=1
+
+# YAML 格式（完整语法）
 curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://google.com
-"
-
-# 设置窗口大小和位置
-curl-rpc "tools/call" "
-name: set_window_bounds
-arguments:
-  win_id: 1
-  x: 1320
-  y: 0
-  width: 360
-  height: 720
-"
-
-# 复用窗口（默认行为）
-curl-rpc "tools/call" "
-name: open_window
-arguments:
-  url: https://github.com
-"
-
-# 强制创建新窗口
-curl-rpc "tools/call" "
-name: open_window
-arguments:
-  url: https://github.com
   reuseWindow: false
 "
 
-# JSON 格式（需要 --json 或 -j 标志）
+# JSON 格式
 curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
-
-# 重新加载窗口
-curl-rpc "tools/call" --json '{"name":"control_electron_WebContents","arguments":{"win_id":1,"code":"webContents.reload()"}}'
 ```
 
-**格式对比：**
+**三种格式对比：**
 
-YAML（~70 字符）：
-```yaml
+简化语法（最简洁）：
+```bash
+curl-rpc open_window url=https://google.com
+```
+
+YAML 格式（推荐，复杂参数）：
+```bash
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
   reuseWindow: false
+"
 ```
 
-JSON（~100 字符）：
+JSON 格式（标准）：
 ```json
 {"name":"open_window","arguments":{"url":"https://google.com","reuseWindow":false}}
 ```
 
-**节省约 30% token！**
+**最佳实践：**
+- 简单参数 → 简化语法
+- 复杂参数/JS 代码 → YAML 格式
+- YAML 比 JSON 省约 30% token
 
 ### 窗口管理
 
@@ -572,18 +564,32 @@ electron-mcp/
 
 ### 热重载开发
 
-修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，下次调用工具时自动加载最新代码。
+修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，使用 `r-reset` 工具清除缓存即可。
 
 ```bash
 # 启动服务
-./service.sh start
+bash skills/electron-mcp-service/service.sh start
 
 # 修改工具代码
 vim src/tools/ping.js
 
-# 直接测试，自动使用新代码
-curl-rpc "tools/call" "name: ping"
+# 清除缓存
+curl-rpc r-reset
+
+# 测试新代码
+curl-rpc ping
 ```
+
+**工作原理：**
+- `r-reset` 清除 `require.cache` 中的 `/tools/` 和 `/utils/` 模块
+- 下次调用工具时自动重新加载最新代码
+- 无需重启 Electron 进程
+
+**适用范围：**
+- ✅ `src/tools/` - 工具实现
+- ✅ `src/utils/` - 工具函数
+- ❌ `src/main.js` - 需要重启
+- ❌ `src/server/` - 需要重启
 
 ### 添加新工具
 
