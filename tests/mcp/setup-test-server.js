@@ -5,7 +5,7 @@ const path = require("path");
 const os = require("os");
 const { killPort, isPortOpen } = require("../../src/utils/process-utils");
 
-const PORT = 8203;
+const PORT = 18102;
 const initUrl = "http://www.google.com";
 
 let electronProcess;
@@ -25,7 +25,8 @@ async function startTestServer() {
     const sandboxPath = path.join(__dirname, "../../node_modules/electron/dist/chrome-sandbox");
     if (fs.existsSync(sandboxPath)) {
       try {
-        fs.chmodSync(sandboxPath, 0o4755);
+        const { execSync } = require('child_process');
+        execSync(`sudo chown root:root "${sandboxPath}" && sudo chmod 4755 "${sandboxPath}"`, { stdio: 'ignore' });
       } catch (err) {
         // Ignore permission errors
       }
@@ -40,6 +41,7 @@ async function startTestServer() {
   electronProcess = spawn("electron", electronArgs, {
     stdio: "pipe",
     detached: false,
+    cwd: path.join(__dirname, "../.."),
     env: { ...process.env, TEST: "TRUE" },
   });
 

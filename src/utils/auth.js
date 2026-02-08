@@ -50,13 +50,13 @@ class AuthManager {
   validateAuth(req) {
     const authHeader = req.headers.authorization;
 
-    console.log(">> url:", req.url);
-    if (req.body) {
-      console.log(">> body:", JSON.stringify(req.body, null, 2));
-    } else {
-      console.log(">> body: [Empty or not parsed]");
-    }
-    console.log(">> headers:", JSON.stringify(req.headers, null, 2), authHeader);
+    // console.log(">> url:", req.url);
+    // if (req.body) {
+    //   console.log(">> body:", JSON.stringify(req.body, null, 2));
+    // } else {
+    //   console.log(">> body: [Empty or not parsed]");
+    // }
+    // console.log(">> headers:", JSON.stringify(req.headers, null, 2), authHeader);
 
     if (!authHeader) return false;
     const token = authHeader.replace("Bearer ", "");

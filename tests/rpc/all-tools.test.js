@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PORT = process.env.RPC_PORT || 8101;
+const PORT = 18102;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // 读取 token

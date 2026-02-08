@@ -112,6 +112,16 @@ app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
       res.json({ result });
     }
   } catch (error) {
+    // Handle Zod validation errors
+    if (error.name === 'ZodError') {
+      const errorMsg = error.errors.map(e => e.message).join(', ');
+      return res.json({ 
+        result: { 
+          content: [{ type: "text", text: errorMsg }], 
+          isError: true 
+        } 
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 });

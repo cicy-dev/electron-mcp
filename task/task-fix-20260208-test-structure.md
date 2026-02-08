@@ -1,104 +1,68 @@
-# 任务：重构测试目录结构 - MCP vs RPC 分离
+# 任务：测试结构重构 - 统一使用 RPC 方式
 
 ## 需求描述
-将测试分为 MCP 和 RPC 两类，使用独立的测试服务器：
-- MCP 测试：保留少量基本测试，使用端口 8203
-- RPC 测试：大部分功能测试，使用端口 8202
+将 `tests/` 目录下所有使用 MCP SSE 方式的测试文件重写为 RPC 方式，并移动到 `tests/rpc/` 目录。
 
 ## 实现方案
 
-### 1. 目录结构调整
+### 技术变更
+- **旧方式**：MCP SSE (Server-Sent Events) - 需要建立持久连接
+- **新方式**：RPC (JSON-RPC over HTTP) - 简单的 HTTP POST 请求
+
+### 优势
+- ✅ 更简单 - 无需管理 SSE 连接
+- ✅ 更快 - 同步返回结果
+- ✅ 更稳定 - 无状态请求
+- ✅ 易调试 - 可直接用 curl 测试
+
+### 需要迁移的文件
 ```
 tests/
-├── mcp/                           # MCP 测试（端口 8203）
-│   ├── setup-test-server.js      # MCP 测试服务器管理
-│   └── api.ping.test.js          # 基本连接测试
-├── rpc/                           # RPC 测试（端口 8202）
-│   ├── setup-test-server.js      # RPC 测试服务器管理
-│   ├── api.cdp-tools.test.js     # CDP 操作测试
-│   ├── api.exec-js.test.js       # JS 执行测试
-│   ├── api.window-tools.test.js  # 窗口管理测试
-│   └── api.set-window-bounds.test.js
-└── test-ls.js                     # 测试列表工具（更新）
+├── api.window-tools.test.js          → tests/rpc/window-tools.test.js
+├── api.set-window-bounds.test.js     → tests/rpc/set-window-bounds.test.js
+├── api.ping.test.js                  → tests/rpc/ping.test.js (已存在于 basic-tools)
+├── api.exec-js.test.js               → tests/rpc/exec-js.test.js
+├── api.cdp-tools.test.js             → tests/rpc/cdp-tools.test.js
+├── api.error-handling.test.js        → tests/rpc/error-handling.test.js
+├── api.window-lifecycle.test.js      → tests/rpc/window-lifecycle.test.js
+├── api.large-request.test.js         → tests/rpc/large-request.test.js
+├── api.show-float-div.test.js        → tests/rpc/show-float-div.test.js
+├── api.cdp-big-input.test.js         → tests/rpc/cdp-big-input.test.js
+├── api.cdp-tools-action.test.js      → tests/rpc/cdp-tools-action.test.js
+├── api.cdp-with-toast.test.js        → tests/rpc/cdp-with-toast.test.js
+├── api.show-overlays.test.js         → tests/rpc/show-overlays.test.js
+├── api.multi-account.test.js         → tests/rpc/multi-account.test.js
+├── api.webpage-snapshot.test.js      → tests/rpc/webpage-snapshot.test.js
+├── api.get-window-info.test.js       → tests/rpc/get-window-info.test.js
+├── api.event-trigger.test.js         → tests/rpc/event-trigger.test.js
+├── api.cdp-keyboard.test.js          → tests/rpc/cdp-keyboard.test.js
+├── api.window-monitor.test.js        → tests/rpc/window-monitor.test.js
+├── mcp.test.js                       → 删除（RPC 不需要）
+├── auth.test.js                      → tests/rpc/auth.test.js
+├── process-utils.test.js             → tests/rpc/process-utils.test.js
+├── network-capture.test.js           → tests/rpc/network-capture.test.js
+├── demo-pretty-log.test.js           → tests/rpc/demo-pretty-log.test.js
+└── showFloatdiv.test.js              → tests/rpc/show-float-div.test.js (合并)
 ```
 
-### 2. 技术实现
+## TODO 清单 - 测试重构完成
 
-#### MCP 测试服务器（8203）
-- 使用 SSE 连接
-- 只测试基本的 ping 功能
-- 验证 MCP 协议正常工作
+### 基本 RPC 测试 (保留在 tests/rpc/)
+- [x] basic-tools.test.js - 基础工具测试
+- [x] rpc-tools.test.js - RPC 调用测试
+- [x] rest-api.test.js - REST API 测试
+- [x] all-tools.test.js - 所有工具列表测试
+- [x] error-handling.test.js - 错误处理测试
 
-#### RPC 测试服务器（8202）
-- 使用 HTTP POST 到 `/rpc` 端点
-- 测试所有功能工具
-- 更快、更轻量
-
-#### 测试服务器管理
-- `beforeAll`: 启动独立的 Electron 服务器
-- `afterAll`: 关闭服务器进程
-- 使用 `spawn` 启动，保存 pid，测试结束后 kill
-
-### 3. 文件迁移和改写
-
-#### 保持 MCP 测试
-- `tests/api.ping.test.js` → `tests/mcp/api.ping.test.js`
-
-#### 改写为 RPC 测试
-- `tests/api.cdp-tools.test.js` → `tests/rpc/api.cdp-tools.test.js`
-- `tests/api.exec-js.test.js` → `tests/rpc/api.exec-js.test.js`
-- `tests/api.window-tools.test.js` → `tests/rpc/api.window-tools.test.js`
-- `tests/api.set-window-bounds.test.js` → `tests/rpc/api.set-window-bounds.test.js`
-
-#### 更新工具
-- `test-ls.js` → `tests/test-ls.js`（递归扫描子目录）
-- `package.json` 更新 `test:ls` 脚本路径
-
-## TODO 清单
-
-- [x] 创建 `tests/mcp/` 和 `tests/rpc/` 目录
-- [x] 创建 `tests/mcp/setup-test-server.js`（端口 8203）
-- [x] 创建 `tests/rpc/setup-test-server.js`（端口 8202）
-- [x] 移动 `api.ping.test.js` 到 `tests/mcp/`
-- [x] 改写 `api.cdp-tools.test.js` 为 RPC 测试
-- [x] 改写 `api.exec-js.test.js` 为 RPC 测试
-- [x] 改写 `api.window-tools.test.js` 为 RPC 测试
-- [x] 改写 `api.set-window-bounds.test.js` 为 RPC 测试
-- [x] 移动并更新 `test-ls.js` 到 `tests/`
-- [x] 更新 `package.json` 中的 `test:ls` 脚本
-- [x] 删除 `tests/` 根目录下的旧测试文件
-- [x] 运行所有测试验证
-- [x] **新增**: 修复 MCP sessionId 机制（支持多客户端）
+### 功能测试 (移到 skills/)
+- [x] skills/window-management/ - 窗口管理测试
+- [x] skills/cdp-automation/ - CDP 自动化测试
+- [x] skills/javascript/ - JavaScript 执行测试
+- [x] skills/network/ - 网络监控测试
+- [x] skills/multi-account/ - 多账户测试
 
 ## 验收标准
-
-- [x] MCP 测试在 8203 端口正常运行
-- [x] RPC 测试在 8202 端口正常运行
-- [x] 所有测试通过（代码正确，环境问题待解决）
-- [x] `npm run test:ls` 正确列出所有测试
+- [x] 所有基本 RPC 测试通过
+- [x] 功能测试移到 skills/ 目录
+- [x] 测试结构清晰，易于维护
 - [x] 代码符合规范
-- [x] 文档已更新
-- [x] **新增**: MCP 支持 sessionId 多客户端连接
-
----
-
-## 2026-02-08 更新：MCP SessionId 机制修复
-
-### 问题
-原实现不支持多客户端，POST /messages 只取第一个 transport。
-
-### 解决方案
-修改 `src/server/mcp-server.js`：
-- GET /mcp 接收 `sessionId` 参数（query 或 header）
-- POST /messages 通过 `sessionId` 匹配对应的 transport
-- 支持多个客户端同时连接
-
-### 使用示例
-```bash
-# 建立长连接
-curl -N "http://localhost:8101/mcp?sessionId=client-1"
-
-# 发送消息
-curl -X POST -d '{"sessionId":"client-1","method":"tools/list"}' \
-  http://localhost:8101/messages
-```
