@@ -24,8 +24,8 @@ inclusion: always
 # - Bug修复：fix/YYYYMMDD-问题简述
 
 # 1. 直接在工作目录克隆并创建分支
-git clone ~/Desktop/projects/electron-mcp ~/Desktop/branch/electron-mcp-<branch-name>
-cd ~/Desktop/branch/electron-mcp-<branch-name>
+git clone -b origin/main git@github.com:cicy-dev/electron-mcp.git  ~/projects/electron-mcp-<branch-name>
+cd ~/projects/electron-mcp-<branch-name>
 git fetch origin
 git checkout -b <branch-name> origin/main
 
@@ -60,16 +60,21 @@ npm install
 ### 阶段4：开发实现
 ```bash
 # 在工作目录进行开发
-cd ~/Desktop/branch/electron-mcp-<branch-name>
+cd ~/projects/electron-mcp-<branch-name>
 
 # 按照 TODO 清单逐项完成
 # 实时更新 TASK.md 中的完成状态
+每完成一个todo 就测试当前代码,一功能一测试,不要全写完代码,再做全部的测试,要一功能一测试
+
+最后 npm run test
 ```
 
 ### 阶段5：本地测试
 ```bash
 # 运行完整测试套件
 npm test
+
+test 不通过不能提交代码 !!!!!!!!!!!!
 
 # 确保所有测试通过
 # 验证所有验收标准
@@ -107,10 +112,8 @@ gh pr create --base main --head <branch-name> --title "标题" --body "详细描
 
 ## 工作目录结构
 ```
-~/Desktop/
-├── projects/
-│   └── electron-mcp/              # 主仓库
-└── branch/
+~/
+└── projects/
     ├── electron-mcp-feat-20260206-feature1/
     ├── electron-mcp-fix-20260206-bug1/
     └── electron-mcp-feat-20260206-feature2/
