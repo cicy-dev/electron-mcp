@@ -21,6 +21,19 @@ curl-rpc "tools/call" "name: ping"  # 应返回 "Pong"
 
 ## 可用技能
 
+### electron-mcp-service
+**位置:** `./electron-mcp-service`  
+**功能:** 浏览器自动化服务
+
+```bash
+bash service.sh start
+curl-rpc "tools/call" "name: ping"
+```
+
+[文档](./electron-mcp-service/README.md)
+
+---
+
 ### curl-rpc
 **位置:** `./curl-rpc`  
 **功能:** MCP RPC 命令行工具
