@@ -105,12 +105,55 @@ cd electron-mcp
 npm install
 ```
 
-### 启动服务器
+### 启动服务
 
 ```bash
-# 启动 MCP 服务器 (默认端口 8101)
-npm start
+# 启动服务
+bash skills/electron-mcp-service/service.sh start
 
+# 验证服务
+curl-rpc "tools/call" "name: ping"
+```
+
+### 使用技能
+
+```bash
+# 下载抖音视频
+bash skills/download-douyin-video/download-douyin-video.sh <url>
+```
+
+## Skills
+
+### 可用技能
+
+| 技能 | 说明 | 文档 |
+|------|------|------|
+| **electron-mcp-service** | 浏览器自动化服务 | [README](./skills/electron-mcp-service/README.md) |
+| **download-douyin-video** | 下载抖音视频 | [README](./skills/download-douyin-video/README.md) |
+| **aistudio** | AI Studio 自动化 | [README](./skills/aistudio/README.md) |
+| **curl-rpc** | RPC 命令行工具 | [README](./skills/curl-rpc/README.md) |
+
+### 创建新技能
+
+```bash
+bash skills/create-skill.sh my-skill
+```
+
+查看 [技能列表](./skills/SKILLS-LIST.md) 了解更多。
+
+## 服务管理
+
+```bash
+bash skills/electron-mcp-service/service.sh start    # 启动
+bash skills/electron-mcp-service/service.sh stop     # 停止
+bash skills/electron-mcp-service/service.sh status   # 状态
+bash skills/electron-mcp-service/service.sh logs     # 日志
+bash skills/electron-mcp-service/service.sh restart  # 重启
+```
+
+## 启动参数
+
+```bash
 # 指定端口启动
 npm start -- --port=8102
 
@@ -130,32 +173,7 @@ npm start -- --url=http://example.com --account=1
 npm start -- --port=8080 --url=http://example.com --account=2 --one-window
 ```
 
-### 使用 service.sh 管理服务
-
-```bash
-# 启动服务（后台运行，默认 DISPLAY :2）
-./service.sh start
-
-# 指定端口启动
-./service.sh start 8102
-
-# 指定端口和 DISPLAY
-./service.sh start 8102 :1
-
-# 查看服务状态
-./service.sh status
-
-# 查看日志
-./service.sh logs
-
-# 重启服务
-./service.sh restart
-
-# 停止服务
-./service.sh stop
-```
-
-### 运行测试
+## 运行测试
 
 ```bash
 # 运行完整测试套件
