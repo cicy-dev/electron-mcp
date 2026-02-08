@@ -4,7 +4,6 @@
   "description": "Electron MCP",
   "main": "src/main.js",
   "scripts": {
-    "preinstall": "bash bin/preinstall.sh",
     "start": "electron .",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
