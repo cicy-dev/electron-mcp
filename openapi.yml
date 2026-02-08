@@ -183,7 +183,8 @@ paths:
                 url:
                   type: string
                 accountIdx:
-                  type: object
+                  type: number
+                  default: 0
                 options:
                   type: object
                   properties: {}
@@ -344,7 +345,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 code:
                   type: string
               required:
@@ -385,7 +387,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 code:
                   type: string
               required:
@@ -428,9 +431,11 @@ paths:
                 win_id:
                   type: number
                 page:
-                  type: object
+                  type: number
+                  default: 1
                 page_size:
-                  type: object
+                  type: number
+                  default: 50
                 keyword:
                   type: string
                 level:
@@ -480,9 +485,11 @@ paths:
                 win_id:
                   type: number
                 page:
-                  type: object
+                  type: number
+                  default: 1
                 page_size:
-                  type: object
+                  type: number
+                  default: 50
                 filter:
                   type: string
               required:
@@ -529,9 +536,11 @@ paths:
                 doc_type:
                   type: string
                 page:
-                  type: object
+                  type: number
+                  default: 1
                 page_size:
-                  type: object
+                  type: number
+                  default: 50
               required:
                 - win_id
       responses:
@@ -618,7 +627,8 @@ paths:
                 save_path:
                   type: string
                 timeout:
-                  type: object
+                  type: number
+                  default: 300000
               required:
                 - win_id
                 - url
@@ -711,11 +721,14 @@ paths:
                 win_id:
                   type: number
                 max_elements:
-                  type: object
+                  type: number
+                  default: 20
                 include_screenshot:
-                  type: object
+                  type: boolean
+                  default: true
                 show_overlays:
-                  type: object
+                  type: boolean
+                  default: false
       responses:
         '200':
           description: Tool execution result
@@ -754,9 +767,11 @@ paths:
                 win_id:
                   type: number
                 page:
-                  type: object
+                  type: number
+                  default: 1
                 page_size:
-                  type: object
+                  type: number
+                  default: 100
                 filter:
                   type: string
               required:
@@ -878,13 +893,19 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 x:
                   type: number
                 'y':
                   type: number
                 button:
-                  type: object
+                  type: string
+                  enum:
+                    - left
+                    - right
+                    - middle
+                  default: left
               required:
                 - x
                 - 'y'
@@ -924,13 +945,19 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 x:
                   type: number
                 'y':
                   type: number
                 button:
-                  type: object
+                  type: string
+                  enum:
+                    - left
+                    - right
+                    - middle
+                  default: left
               required:
                 - x
                 - 'y'
@@ -970,7 +997,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 key:
                   type: string
               required:
@@ -1011,7 +1039,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1048,7 +1077,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1085,7 +1115,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1122,7 +1153,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1159,7 +1191,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1196,7 +1229,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1233,7 +1267,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 text:
                   type: string
               required:
@@ -1274,9 +1309,11 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 x:
-                  type: object
+                  type: number
+                  default: 0
                 'y':
                   type: number
               required:
@@ -1317,11 +1354,13 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 method:
                   type: string
                 params:
                   type: object
+                  default: {}
               required:
                 - method
       responses:
@@ -1360,7 +1399,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 code:
                   type: string
               required:
@@ -1401,7 +1441,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
       responses:
         '200':
           description: Tool execution result
@@ -1438,7 +1479,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 code:
                   type: string
               required:
@@ -1479,7 +1521,8 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 selector:
                   type: string
               required:
@@ -1520,17 +1563,21 @@ paths:
               type: object
               properties:
                 win_id:
-                  type: object
+                  type: number
+                  default: 1
                 x:
                   type: number
                 'y':
                   type: number
                 w:
-                  type: object
+                  type: number
+                  default: 300
                 h:
-                  type: object
+                  type: number
+                  default: 200
                 opacity:
-                  type: object
+                  type: number
+                  default: 0.7
       responses:
         '200':
           description: Tool execution result

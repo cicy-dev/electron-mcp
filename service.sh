@@ -19,7 +19,7 @@ start() {
     echo "🚀 启动服务 (端口: $PORT)..."
     
     cd "$SCRIPT_DIR"
-    DISPLAY=:1 PORT=$PORT npm start > "$LOG_FILE" 2>&1 &
+    DISPLAY=:2 PORT=$PORT npm start -- --one-window > "$LOG_FILE" 2>&1 &
     local pid=$!
     echo $pid > "$PID_FILE"
     

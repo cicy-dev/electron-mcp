@@ -37,7 +37,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -74,7 +75,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -103,7 +105,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -131,7 +134,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -159,7 +163,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -189,7 +194,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -219,7 +225,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -249,7 +256,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -279,7 +287,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -300,7 +309,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -328,7 +338,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "Input" }
   );
 
   registerTool(
@@ -350,7 +361,8 @@ function registerTools(registerTool) {
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }
-    }
+    },
+    { tag: "CDP" }
   );
 }
 

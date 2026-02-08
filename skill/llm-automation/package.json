@@ -1,0 +1,15 @@
+{
+    "name": "llm-automation-skill",
+    "version": "1.0.0",
+    "description": "MCP Server and CLI for automating LLM interactions via Electron MCP",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "cli": "node cli.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.1",
+        "axios": "^1.6.0",
+        "zod": "^3.22.0"
+    }
+}

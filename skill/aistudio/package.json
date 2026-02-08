@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "ws-server": "node ws-server.js"
+    "ws-server": "node ws-server.js",
+    "auto": "node auto-run.js"
   },
   "keywords": [
     "electron",
@@ -24,7 +25,9 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "setupFilesAfterEnv": [
+      "./jest.setup.js"
+    ],
     "testTimeout": 30000
   }
 }

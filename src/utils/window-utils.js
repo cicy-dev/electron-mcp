@@ -39,10 +39,33 @@ function setupWindowHandlers(win) {
 function createWindow(options = {}, accountIdx = 0) {
   const { width = 1200, height = 800, url, webPreferences = {}, x, y } = options;
 
+  // Check if oneWindow mode is enabled - execute before coordinate logic
+  if (config.oneWindow) {
+    const allWindows = BrowserWindow.getAllWindows();
+    if (allWindows.length > 0) {
+      const existingWin = allWindows[0];
+      console.log(`[WindowUtils] Single window mode enabled. Reusing existing window ${existingWin.id}`);
+
+      if (existingWin.isMinimized()) existingWin.restore();
+      existingWin.focus();
+
+      if (url) {
+        const currentUrl = existingWin.webContents.getURL();
+        if (currentUrl === url) {
+          console.log(`[WindowUtils] Same URL detected, reloading page`);
+          existingWin.webContents.reload();
+        } else {
+          existingWin.loadURL(url);
+        }
+      }
+      return existingWin;
+    }
+  }
+
   // 如果没有指定 x, y，则根据现有窗口自动偏移
   let posX = x;
   let posY = y;
-  
+
   if (posX === undefined || posY === undefined) {
     const allWindows = BrowserWindow.getAllWindows();
     const offset = allWindows.length * 30; // 每个窗口偏移30px
@@ -56,11 +79,26 @@ function createWindow(options = {}, accountIdx = 0) {
     x: posX,
     y: posY,
     webPreferences: {
+      offscreen: false, // 确保不是离屏渲染
       nodeIntegration: false,
       contextIsolation: true,
       partition: `persist:sandbox-${accountIdx}`,
       ...webPreferences,
     },
+  });
+
+  // ✅ 核心修正：获取当前窗口真正使用的那个 session
+  const ses = win.webContents.session;
+
+  ses.setPermissionRequestHandler((webContents, permission, callback) => {
+    console.log(`[Display :2] 已自动拒绝权限请求: ${permission}`);
+    // 针对 Google AI Studio 常见的 geolocation 或 notifications 自动返回 false
+    return callback(false);
+  });
+
+  // 💡 额外保险：处理权限检查（某些新版 Electron 需要这个）
+  ses.setPermissionCheckHandler((webContents, permission, originatingOrigin) => {
+    return false; // 同样全部拒绝
   });
 
   function getTitlePrefix() {
