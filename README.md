@@ -22,6 +22,15 @@
 
 - `ping` - 测试 MCP 服务器连接
 
+### 系统工具
+
+- `get_system_windows` - 获取所有系统窗口信息（支持简洁/详细模式）
+- `focus_system_window` - 聚焦指定系统窗口
+- `get_system_info` - 获取系统信息（CPU、内存、磁盘、负载、IP）
+- `system_screenshot` - 截取全屏并保存为 JPEG
+- `sys_win_screenshot` - 截取指定窗口并保存为 JPEG
+- `system_window_setbound` - 设置系统窗口的位置和大小
+
 ### 窗口管理
 
 - `get_windows` - 获取所有窗口列表和详细信息

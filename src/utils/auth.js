@@ -43,24 +43,29 @@ class AuthManager {
   }
 
   /**
-   * 验证认证令牌
+   * 验证认证令牌（支持 Bearer 和 Basic Auth）
    * @param {Object} req - HTTP 请求对象
    * @returns {boolean} 验证结果
    */
   validateAuth(req) {
     const authHeader = req.headers.authorization;
-
-    // console.log(">> url:", req.url);
-    // if (req.body) {
-    //   console.log(">> body:", JSON.stringify(req.body, null, 2));
-    // } else {
-    //   console.log(">> body: [Empty or not parsed]");
-    // }
-    // console.log(">> headers:", JSON.stringify(req.headers, null, 2), authHeader);
-
     if (!authHeader) return false;
-    const token = authHeader.replace("Bearer ", "");
-    return token === this.authToken;
+
+    // Bearer token
+    if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      return token === this.authToken;
+    }
+
+    // Basic Auth (username:password where password is token)
+    if (authHeader.startsWith("Basic ")) {
+      const base64Credentials = authHeader.replace("Basic ", "");
+      const credentials = Buffer.from(base64Credentials, "base64").toString("utf8");
+      const [, password] = credentials.split(":");
+      return password === this.authToken;
+    }
+
+    return false;
   }
 
   /**

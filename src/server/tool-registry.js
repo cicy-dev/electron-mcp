@@ -6,30 +6,38 @@ function zodToJsonSchema(zodSchema) {
   const required = [];
 
   for (const [key, value] of Object.entries(shape)) {
-    const fieldSchema = { type: "string" };
+    let fieldDef = value._def;
+    let fieldSchema = { type: "string" };
 
-    if (value._def.typeName === "ZodNumber") {
-      fieldSchema.type = "number";
-    } else if (value._def.typeName === "ZodBoolean") {
+    // Unwrap ZodOptional and ZodDefault
+    while (fieldDef.typeName === "ZodOptional" || fieldDef.typeName === "ZodDefault") {
+      if (fieldDef.typeName === "ZodDefault") {
+        fieldSchema.default = fieldDef.defaultValue();
+      }
+      fieldDef = fieldDef.innerType?._def || fieldDef;
+    }
+
+    // Map Zod types to JSON Schema types
+    if (fieldDef.typeName === "ZodNumber") {
+      fieldSchema.type = "integer";
+    } else if (fieldDef.typeName === "ZodString") {
+      fieldSchema.type = "string";
+    } else if (fieldDef.typeName === "ZodBoolean") {
       fieldSchema.type = "boolean";
-    } else if (value._def.typeName === "ZodArray") {
+    } else if (fieldDef.typeName === "ZodArray") {
       fieldSchema.type = "array";
       fieldSchema.items = { type: "string" };
-    } else if (value._def.typeName === "ZodObject") {
+    } else if (fieldDef.typeName === "ZodObject") {
       fieldSchema.type = "object";
     }
 
-    if (value._def.description) {
-      fieldSchema.description = value._def.description;
+    if (fieldDef.description || value._def.description) {
+      fieldSchema.description = fieldDef.description || value._def.description;
     }
 
     const isOptional = value.isOptional && value.isOptional();
     if (!isOptional) {
       required.push(key);
-    }
-
-    if (value._def.defaultValue !== undefined) {
-      fieldSchema.default = value._def.defaultValue();
     }
 
     properties[key] = fieldSchema;

@@ -8,4 +8,6 @@ module.exports = [
   require("./exec-js"),
   require("./clipboard-tools"),
   require("./exec-tools"),
+  require("./file-tools"),
+  require("./system-tools"),
 ];

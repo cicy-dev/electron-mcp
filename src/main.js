@@ -48,8 +48,10 @@ log.info("[MCP] Server starting at", new Date().toISOString());
 
 // Initialize auth
 const authManager = new AuthManager();
+global.authManager = authManager; // Make it globally accessible
 const authMiddleware = (req, res, next) => {
   if (!authManager.validateAuth(req)) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Electron MCP"');
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
@@ -149,6 +151,19 @@ app.get("/rpc/tools", authMiddleware, (req, res) => {
     res.json({ tools: allTools });
   }
 });
+
+// Static file server for uploads/downloads
+const fs = require("fs");
+const path = require("path");
+const serveIndex = require("serve-index");
+const FILES_DIR = path.join(require("os").homedir(), "electron-mcp-files");
+if (!fs.existsSync(FILES_DIR)) {
+  fs.mkdirSync(FILES_DIR, { recursive: true });
+}
+
+// Serve files with directory listing (auth required)
+app.use("/files", authMiddleware, require("express").static(FILES_DIR));
+app.use("/files", authMiddleware, serveIndex(FILES_DIR, { icons: true, view: "details" }));
 
 // Dynamic tool endpoints: /rpc/{tool_name}
 Object.values(tools).flat().forEach(tool => {

@@ -93,15 +93,15 @@ function registerTools(registerTool) {
   );
 
   registerTool(
-    "exec_npm",
-    "Execute npm command",
+    "exec_node",
+    "Execute Node.js code",
     z.object({
-      command: z.string().describe("npm command (e.g., 'install lodash', 'run test')"),
+      code: z.string().describe("Node.js code to execute"),
       cwd: z.string().optional().describe("Working directory"),
     }),
-    async ({ command, cwd }) => {
+    async ({ code, cwd }) => {
       try {
-        const { stdout, stderr } = await execPromise(`npm ${command}`, {
+        const { stdout, stderr } = await execPromise(`node -e '${code.replace(/'/g, "'\\''")}'`, {
           cwd: cwd || process.cwd(),
           maxBuffer: 1024 * 1024 * 10
         });
@@ -112,17 +112,13 @@ function registerTools(registerTool) {
           exitCode: 0
         };
         
-        if (!stdout && !stderr) {
-          result.message = "npm command executed successfully but returned no output";
-        }
-        
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         const result = {
           stdout: error.stdout || "",
-          stderr: error.stderr || error.message || "npm command failed",
+          stderr: error.stderr || error.message || "Node.js execution failed",
           exitCode: error.code || 1,
           error: error.message
         };
