@@ -11,14 +11,13 @@ function createMcpServer() {
   });
 }
 
-function createTransport(res) {
+function createTransport(res, sessionId) {
   const transport = new SSEServerTransport("/messages", res);
-  const clientId = Math.random().toString(36).substring(7);
-  transports.set(clientId, transport);
+  transports.set(sessionId, transport);
 
   res.on("close", () => {
-    transports.delete(clientId);
-    log.debug(`[MCP] SSE connection closed: ${clientId}`);
+    transports.delete(sessionId);
+    log.debug(`[MCP] SSE connection closed: ${sessionId}`);
   });
 
   return transport;
@@ -26,18 +25,27 @@ function createTransport(res) {
 
 function setupMcpRoutes(app, mcpServer, authMiddleware) {
   app.get("/mcp", authMiddleware, async (req, res) => {
-    log.debug("[MCP] SSE connection established");
-    const transport = createTransport(res);
+    const sessionId = req.query.sessionId || req.headers["x-session-id"];
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId required" });
+    }
+    
+    log.debug(`[MCP] SSE connection established: ${sessionId}`);
+    const transport = createTransport(res, sessionId);
     await mcpServer.connect(transport);
   });
 
   app.post("/messages", authMiddleware, async (req, res) => {
-    const clientId = Array.from(transports.keys())[0];
-    const transport = transports.get(clientId);
+    const sessionId = req.body.sessionId || req.headers["x-session-id"];
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId required" });
+    }
+
+    const transport = transports.get(sessionId);
     if (transport) {
       await transport.handlePostMessage(req, res);
     } else {
-      res.status(400).json({ error: "No active SSE connection" });
+      res.status(400).json({ error: `No active SSE connection for session: ${sessionId}` });
     }
   });
 }

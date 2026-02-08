@@ -8,7 +8,7 @@
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\"",
     "test": "TEST_ALL=true jest --forceExit --testTimeout=30000 --runInBand",
-    "test:ls": "node test-ls.js",
+    "test:ls": "node tests/test-ls.js",
     "build": "electron-builder --publish never",
     "build:win": "electron-builder --win --publish never",
     "build:linux": "electron-builder --linux --publish never"

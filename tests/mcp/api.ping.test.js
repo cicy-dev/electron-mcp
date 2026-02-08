@@ -1,28 +1,49 @@
-const { setPort, setupTest, teardownTest, sendRequest } = require("./test-utils");
+const { startTestServer, stopTestServer, getSessionId, getAuthToken, getPort, getSSEResponses } = require("./setup-test-server");
 const request = require("supertest");
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
+
+let requestId = 1;
+
+async function sendRequest(method, params = {}) {
+  const id = requestId++;
+  const reqBody = { jsonrpc: "2.0", id, method, params };
+  const sessionId = getSessionId();
+  const authToken = getAuthToken();
+  const port = getPort();
+  const sseResponses = getSSEResponses();
+
+  await request(`http://localhost:${port}`)
+    .post(`/messages?sessionId=${sessionId}`)
+    .set("Accept", "application/json")
+    .set("Content-Type", "application/json")
+    .set("Authorization", `Bearer ${authToken}`)
+    .send(reqBody);
+
+  await new Promise((resolve) => {
+    const checkResponse = () => {
+      if (sseResponses[id]) {
+        resolve();
+      } else {
+        setTimeout(checkResponse, 100);
+      }
+    };
+    checkResponse();
+  });
+
+  return sseResponses[id];
+}
 
 describe("MCP HTTP API - Auth 测试套件", () => {
   let authToken;
   let serverUrl;
 
   beforeAll(async () => {
-    setPort(8102);
-    await setupTest();
-    serverUrl = `http://localhost:8102`;
-    
-    // 读取 token
-    const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
-    if (fs.existsSync(tokenPath)) {
-      authToken = fs.readFileSync(tokenPath, "utf8").trim();
-      console.log("Auth token loaded for testing");
-    }
+    await startTestServer();
+    authToken = getAuthToken();
+    serverUrl = `http://localhost:${getPort()}`;
   }, 30000);
 
   afterAll(async () => {
-    await teardownTest();
+    await stopTestServer();
   });
 
   describe("认证测试", () => {
