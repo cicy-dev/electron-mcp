@@ -32,7 +32,38 @@ curl-rpc "tools/call" --json '{"name":"ping"}'
 
 ---
 
-### 2. Electron MCP Server
+### 2. download-douyin-video - 抖音视频下载
+**Location:** `./download-douyin-video`
+
+**Description:** 自动下载抖音视频到本地，使用 electron-mcp 捕获视频真实地址。
+
+**Features:**
+- 🎬 自动捕获视频真实地址
+- 📥 一键下载到本地
+- 🔍 智能网络请求过滤
+- ⚙️ 可配置等待时间和保存路径
+- ✅ 完整的错误处理
+
+**Usage:**
+```bash
+# 下载单个视频
+bash skills/download-douyin-video/download-douyin-video.sh \
+  https://www.douyin.com/video/7594434780347813155
+
+# 自定义配置
+DOWNLOAD_DIR=~/Downloads WAIT_TIME=10 \
+bash skills/download-douyin-video/download-douyin-video.sh <url>
+```
+
+**Requirements:**
+- electron-mcp 服务运行中 (`npm start`)
+- jq 已安装 (`sudo apt-get install jq`)
+
+**Documentation:** [download-douyin-video/README.md](./download-douyin-video/README.md)
+
+---
+
+### 3. Electron MCP Server
 **Location:** `/home/w3c_offical/projects/electron-mcp/skills`
 
 **Description:** 基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。
