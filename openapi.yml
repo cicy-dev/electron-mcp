@@ -9,21 +9,12 @@ servers:
   - url: https://gcp-8101.cicy.de5.net
     description: Remote server
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: token
-security:
-  - bearerAuth: []
 paths:
   /rpc/tools:
     get:
       summary: List all available tools
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: List of tools
@@ -46,8 +37,6 @@ paths:
       description: 测试 MCP 服务器连接
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -97,8 +86,6 @@ paths:
           - 调试辅助：查看所有窗口的实时信息
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -132,8 +119,6 @@ paths:
       description: 获取指定窗口的详细信息
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -171,8 +156,6 @@ paths:
       description: 打开新的浏览器窗口。用于创建新窗口访问网页、测试多窗口应用或隔离不同的浏览会话。支持自定义窗口大小和位置。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -216,8 +199,6 @@ paths:
       description: 关闭窗口
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -255,8 +236,6 @@ paths:
       description: 加载URL
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -296,8 +275,6 @@ paths:
       description: 获取窗口标题
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -335,8 +312,6 @@ paths:
       description: '直接调用Electron BrowserWindow实例的方法和属性。主要用途：窗口控制(移动、调整大小、最小化、最大化)、状态管理(置顶、焦点、可见性)、属性获取(位置、大小、状态)、高级操作(透明度、边框、图标)。可访问win(BrowserWindow实例)和webContents对象，支持async/await。示例: win.getBounds() 或 win.maximize() 或 win.webContents.executeJavaScript(''document.title'')'
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -377,8 +352,6 @@ paths:
       description: '调用Electron webContents的方法和属性。主要用途：页面操作(截图、打印、缩放、导航)、内容获取(URL、标题、源码)、脚本执行(在页面中执行JS)、开发调试(控制台信息、性能数据)、媒体控制(音频/视频)。可访问webContents和win对象，支持async/await，自动处理NativeImage返回为图像格式。示例: webContents.getURL() 或 webContents.reload() 或 webContents.capturePage()'
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -419,8 +392,6 @@ paths:
       description: 获取窗口的控制台日志。返回自窗口创建或上次重载以来的所有 console 输出，包括 log/info/warning/error 等级别。支持分页查询和过滤。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -473,8 +444,6 @@ paths:
       description: 获取窗口的网络请求记录。返回所有请求的详细信息（包含文件路径）。支持 URL 过滤和分页。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -520,8 +489,6 @@ paths:
       description: 根据关键词或文档类型过滤网络请求。搜索 URL、POST data 或按文档类型筛选。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -569,8 +536,6 @@ paths:
       description: 获取指定请求的详细信息，包括请求头和请求体。使用请求的 index 来查询。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -611,8 +576,6 @@ paths:
       description: 使用窗口的 session 下载文件到指定路径。不会弹出保存对话框，下载完成后文件直接保存到 save_path。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -672,8 +635,6 @@ paths:
         - 包含图像尺寸信息
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -709,8 +670,6 @@ paths:
       description: 捕获页面的结构快照，包含 URL、截图和所有可交互元素的信息。支持按类型/文本搜索元素。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -755,8 +714,6 @@ paths:
       description: 获取窗口的所有请求 URL 列表（队列）。支持 URL 过滤。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -802,8 +759,6 @@ paths:
       description: 根据 URL 获取请求的完整详情。返回该 URL 的所有请求和响应的文件路径列表。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -844,8 +799,6 @@ paths:
       description: 清空指定窗口的所有请求记录（仅清空内存，不删除已保存的文件）。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -883,8 +836,6 @@ paths:
       description: 使用 Chrome DevTools Protocol 点击页面指定坐标
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -935,8 +886,6 @@ paths:
       description: 使用 Chrome DevTools Protocol 双击页面指定坐标
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -987,8 +936,6 @@ paths:
       description: 使用 CDP 按下指定按键
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1029,8 +976,6 @@ paths:
       description: 使用 CDP 按下回车键
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1067,8 +1012,6 @@ paths:
       description: 使用 CDP 按下退格键
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1105,8 +1048,6 @@ paths:
       description: 使用 CDP 执行复制操作 (Ctrl+C)
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1143,8 +1084,6 @@ paths:
       description: 使用 CDP 执行粘贴操作 (Ctrl+V)
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1181,8 +1120,6 @@ paths:
       description: 使用 CDP 执行全选操作 (Ctrl+A)
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1219,8 +1156,6 @@ paths:
       description: 使用 CDP 执行剪切操作 (Ctrl+X)
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1257,8 +1192,6 @@ paths:
       description: 使用 CDP 输入文本
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1299,8 +1232,6 @@ paths:
       description: 使用 CDP 滚动页面
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1344,8 +1275,6 @@ paths:
       description: 使用 CDP 发送任意 Chrome DevTools Protocol 命令
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1389,8 +1318,6 @@ paths:
       description: 注入JS代码到当前域名的localStorage，页面刷新/导航后自动执行。⚠️ 重要：仅对当前域名生效！跨域页面不会执行。典型用法：1)注入轻量工具函数 2)注入自动化脚本(自动登录、表单填充) 3)修改页面样式或行为 4)注入调试工具。示例：注入function hello(){console.log('hi')},刷新后调用hello()
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1431,8 +1358,6 @@ paths:
       description: 读取已注入到当前域名localStorage的自动执行JS代码
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1469,8 +1394,6 @@ paths:
       description: '在窗口中执行JS代码并返回结果,支持async/await。示例: document.title 或 return document.title 或 await fetch(''/api'').then(r=>r.json())'
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1511,8 +1434,6 @@ paths:
       description: 获取页面元素的位置和尺寸信息(getBoundingClientRect)。返回元素的 x, y, width, height, top, left, right, bottom 坐标。selector 必须唯一且不能为空
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1553,8 +1474,6 @@ paths:
       description: 在页面中心显示一个可拖拽、可调整大小的浮动 div。支持自定义位置、尺寸和透明度。
       tags:
         - Tools
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
