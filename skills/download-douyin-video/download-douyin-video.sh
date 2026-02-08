@@ -85,28 +85,29 @@ arguments:
 
 # 捕获视频URL
 capture_video_url() {
-    log_info "Capturing video URL from network requests..."
+    log_info "Capturing video URL..."
     
+    # 方法1: 从页面 video 元素获取（更可靠）
     local result
     result=$("$CURL_RPC" "tools/call" "
-name: filter_requests
+name: exec_js
 arguments:
   win_id: 1
-  pattern: __vid
+  code: Array.from(document.querySelectorAll('video')).map(v => v.currentSrc || v.src).filter(s => s && s.includes('http') && s.includes('__vid')).join('\\n')
 " 2>&1)
     
     if echo "$result" | grep -q "error"; then
-        log_error "Failed to get network requests"
+        log_error "Failed to execute JavaScript"
         echo "$result" >&2
         exit 1
     fi
     
-    # 提取包含 __vid 的 URL
+    # 提取视频 URL
     local video_url
-    video_url=$(echo "$result" | jq -r '.content[0].text' | jq -r '.[] | select(.url | contains("__vid")) | .url' | head -1)
+    video_url=$(echo "$result" | grep -o 'https://[^"]*__vid=[^"]*' | head -1)
     
-    if [ -z "$video_url" ] || [ "$video_url" = "null" ]; then
-        log_error "No video URL found with __vid pattern"
+    if [ -z "$video_url" ]; then
+        log_error "No video URL found"
         log_warn "Try increasing WAIT_TIME or check if the page loaded correctly"
         exit 1
     fi
@@ -125,28 +126,19 @@ download_video() {
     
     log_info "Downloading video to: $save_path"
     
-    local result
-    result=$("$CURL_RPC" "tools/call" "
-name: session_download_url
-arguments:
-  win_id: 1
-  url: $video_url
-  savePath: $save_path
-" 2>&1)
-    
-    if echo "$result" | grep -q "error"; then
-        log_error "Failed to download video"
-        echo "$result" >&2
-        exit 1
-    fi
-    
-    if [ -f "$save_path" ]; then
-        local file_size
-        file_size=$(du -h "$save_path" | cut -f1)
-        log_info "Download complete! File size: $file_size"
-        log_info "Saved to: $save_path"
+    # 使用 curl 直接下载（更可靠）
+    if curl -L -o "$save_path" "$video_url" 2>&1 | grep -q "100"; then
+        if [ -f "$save_path" ]; then
+            local file_size
+            file_size=$(du -h "$save_path" | cut -f1)
+            log_info "Download complete! File size: $file_size"
+            log_info "Saved to: $save_path"
+        else
+            log_error "Download failed: file not found"
+            exit 1
+        fi
     else
-        log_error "Download failed: file not found"
+        log_error "Download failed"
         exit 1
     fi
 }

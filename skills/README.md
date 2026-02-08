@@ -6,7 +6,7 @@
 
 ```bash
 # 1. 启动服务
-bash ./service.sh start
+bash skills/electron-mcp-service/service.sh start
 
 # 2. 使用技能
 bash skills/download-douyin-video/download-douyin-video.sh <url>
@@ -36,9 +36,9 @@ bash skills/my-skill/tests/test.sh
 ## 服务管理
 
 ```bash
-bash ./service.sh start   # 启动
-bash ./service.sh status  # 状态
-bash ./service.sh logs    # 日志
+bash skills/electron-mcp-service/service.sh start   # 启动
+bash skills/electron-mcp-service/service.sh status  # 状态
+bash skills/electron-mcp-service/service.sh logs    # 日志
 ```
 
 ## 参考

@@ -6,7 +6,7 @@
 
 ```bash
 # 启动服务
-bash service.sh start
+bash skills/electron-mcp-service/service.sh start
 
 # 验证服务
 curl-rpc "tools/call" "name: ping"
@@ -22,11 +22,11 @@ arguments:
 ## 服务管理
 
 ```bash
-bash service.sh start    # 启动
-bash service.sh stop     # 停止
-bash service.sh status   # 状态
-bash service.sh logs     # 日志
-bash service.sh restart  # 重启
+bash skills/electron-mcp-service/service.sh start    # 启动
+bash skills/electron-mcp-service/service.sh stop     # 停止
+bash skills/electron-mcp-service/service.sh status   # 状态
+bash skills/electron-mcp-service/service.sh logs     # 日志
+bash skills/electron-mcp-service/service.sh restart  # 重启
 ```
 
 ## 可用工具
