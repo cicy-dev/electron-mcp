@@ -7,6 +7,7 @@ const {
   getRequestDetail,
   getBeforeSendRequests,
   getRequestDetailByUrl,
+  getLoadingFinishedRequests,
   clearRequests,
 } = require("../utils/window-monitor");
 const { captureSnapshot } = require("../utils/snapshot-utils");

@@ -1,18 +1,41 @@
 # Electron MCP Server
 
-基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。支持多账户隔离、会话管理、丰富的 CDP 操作，以及 **YAML/JSON 双格式支持**。
+基于 Electron 的 MCP 服务器，提供**浏览器自动化 + 系统级控制**的完整解决方案。支持多账户隔离、会话管理、丰富的 CDP 操作，以及 **YAML/JSON 双格式支持**。
+
+## 🌟 产品亮点
+
+### 🎯 双层自动化能力
+- **浏览器层**：完整的 CDP 控制，网页自动化专家
+- **系统层**：跨应用窗口管理，不限于浏览器
+
+### 🚀 开发体验极致优化
+- **简化语法**：`curl-rpc tool_name key=value`，告别冗长 JSON
+- **热重载**：修改代码无需重启，秒级生效
+- **YAML 优先**：比 JSON 节省 30% token，AI 友好
+
+### 🔒 企业级特性
+- **多账户隔离**：Cookie/Storage 完全隔离，支持多账号场景
+- **认证保护**：Bearer Token + Basic Auth 双重支持
+- **文件托管**：截图自动托管，支持认证访问
+
+### 🧩 高度可扩展
+- **模块化架构**：清晰的工具分组，易于扩展
+- **MCP 协议**：标准化接口，AI Agent 无缝集成
+- **跨平台就绪**：核心架构支持 Windows/macOS 扩展
 
 ## ✨ 核心特性
 
-- 🚀 **YAML 优先** - 默认 YAML 格式，节省 30-45% token
-- 🔥 **热重载** - 修改工具代码无需重启 Electron
-- 🪟 **窗口管理** - 多窗口支持，智能复用
+- 🚀 **简化语法** - `curl-rpc tool_name key=value`，最简洁
+- 📝 **YAML 优先** - 默认 YAML 格式，节省 30% token
+- 🔥 **手动热重载** - `curl-rpc r-reset` 清除缓存，无需重启
+- 🪟 **双层窗口管理** - 浏览器窗口 + 系统窗口全覆盖
 - 👤 **多账户隔离** - Cookie/Storage 完全隔离
-- 🎯 **CDP 操作** - 鼠标、键盘、页面控制
-- 📸 **截图与监控** - 网络请求、控制台日志
+- 🎯 **CDP 完整控制** - 鼠标、键盘、页面、网络
+- 📸 **智能截图** - 全屏/窗口截图，自动清理
+- 🖥️ **系统监控** - CPU、内存、磁盘、网络、IP
 - 🔧 **轻量工具** - curl-rpc 命令行工具
 - 🧩 **模块化架构** - 清晰的代码组织，易于维护
-- ⚡ **执行工具** - Shell/Python/npm 命令执行
+- ⚡ **执行工具** - Shell/Python/Node.js 命令执行
 - 📋 **剪贴板操作** - 文本和图片的读写
 
 ## 功能特性
@@ -20,6 +43,15 @@
 ### 核心工具
 
 - `ping` - 测试 MCP 服务器连接
+
+### 系统工具
+
+- `get_system_windows` - 获取所有系统窗口信息（支持简洁/详细模式）
+- `focus_system_window` - 聚焦指定系统窗口
+- `get_system_info` - 获取系统信息（CPU、内存、磁盘、负载、IP）
+- `system_screenshot` - 截取全屏并保存为 JPEG
+- `sys_win_screenshot` - 截取指定窗口并保存为 JPEG
+- `system_window_setbound` - 设置系统窗口的位置和大小
 
 ### 窗口管理
 
@@ -105,12 +137,55 @@ cd electron-mcp
 npm install
 ```
 
-### 启动服务器
+### 启动服务
 
 ```bash
-# 启动 MCP 服务器 (默认端口 8101)
-npm start
+# 启动服务
+bash skills/electron-mcp-service/service.sh start
 
+# 验证服务
+curl-rpc "tools/call" "name: ping"
+```
+
+### 使用技能
+
+```bash
+# 下载抖音视频
+bash skills/download-douyin-video/download-douyin-video.sh <url>
+```
+
+## Skills
+
+### 可用技能
+
+| 技能 | 说明 | 文档 |
+|------|------|------|
+| **electron-mcp-service** | 浏览器自动化服务 | [README](./skills/electron-mcp-service/README.md) |
+| **download-douyin-video** | 下载抖音视频 | [README](./skills/download-douyin-video/README.md) |
+| **aistudio** | AI Studio 自动化 | [README](./skills/aistudio/README.md) |
+| **curl-rpc** | RPC 命令行工具 | [README](./skills/curl-rpc/README.md) |
+
+### 创建新技能
+
+```bash
+bash skills/create-skill.sh my-skill
+```
+
+查看 [技能列表](./skills/SKILLS-LIST.md) 了解更多。
+
+## 服务管理
+
+```bash
+bash skills/electron-mcp-service/service.sh start    # 启动
+bash skills/electron-mcp-service/service.sh stop     # 停止
+bash skills/electron-mcp-service/service.sh status   # 状态
+bash skills/electron-mcp-service/service.sh logs     # 日志
+bash skills/electron-mcp-service/service.sh restart  # 重启
+```
+
+## 启动参数
+
+```bash
 # 指定端口启动
 npm start -- --port=8102
 
@@ -130,32 +205,7 @@ npm start -- --url=http://example.com --account=1
 npm start -- --port=8080 --url=http://example.com --account=2 --one-window
 ```
 
-### 使用 service.sh 管理服务
-
-```bash
-# 启动服务（后台运行，默认 DISPLAY :2）
-./service.sh start
-
-# 指定端口启动
-./service.sh start 8102
-
-# 指定端口和 DISPLAY
-./service.sh start 8102 :1
-
-# 查看服务状态
-./service.sh status
-
-# 查看日志
-./service.sh logs
-
-# 重启服务
-./service.sh restart
-
-# 停止服务
-./service.sh stop
-```
-
-### 运行测试
+## 运行测试
 
 ```bash
 # 运行完整测试套件
@@ -226,7 +276,7 @@ kiro-cli mcp add --name electron-mcp --url http://localhost:8101/mcp --force
 
 ### 命令行工具 (curl-rpc)
 
-快速调用 MCP 工具的轻量级命令行工具，**默认使用 YAML 格式**（节省 30-45% token）：
+快速调用 MCP 工具的轻量级命令行工具，**支持简化语法和 YAML/JSON 双格式**：
 
 ```bash
 # 安装到 ~/.local/bin
@@ -239,62 +289,53 @@ pip install yq --break-system-packages
 # 设置 token（首次使用）
 echo "your-token-here" > ~/electron-mcp-token.txt
 
-# YAML 格式（默认，推荐）
+# 简化语法（推荐）
+curl-rpc ping
+curl-rpc open_window url=https://google.com
+curl-rpc get_window_info win_id=1
+curl-rpc set_window_bounds win_id=1 x=100 y=100 width=1280 height=720
+curl-rpc cdp_click win_id=1 x=500 y=300
+curl-rpc cdp_type_text win_id=1 text="Hello World"
+curl-rpc close_window win_id=1
+
+# YAML 格式（完整语法）
 curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://google.com
-"
-
-# 设置窗口大小和位置
-curl-rpc "tools/call" "
-name: set_window_bounds
-arguments:
-  win_id: 1
-  x: 1320
-  y: 0
-  width: 360
-  height: 720
-"
-
-# 复用窗口（默认行为）
-curl-rpc "tools/call" "
-name: open_window
-arguments:
-  url: https://github.com
-"
-
-# 强制创建新窗口
-curl-rpc "tools/call" "
-name: open_window
-arguments:
-  url: https://github.com
   reuseWindow: false
 "
 
-# JSON 格式（需要 --json 或 -j 标志）
+# JSON 格式
 curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
-
-# 重新加载窗口
-curl-rpc "tools/call" --json '{"name":"control_electron_WebContents","arguments":{"win_id":1,"code":"webContents.reload()"}}'
 ```
 
-**格式对比：**
+**三种格式对比：**
 
-YAML（~70 字符）：
-```yaml
+简化语法（最简洁）：
+```bash
+curl-rpc open_window url=https://google.com
+```
+
+YAML 格式（推荐，复杂参数）：
+```bash
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
   reuseWindow: false
+"
 ```
 
-JSON（~100 字符）：
+JSON 格式（标准）：
 ```json
 {"name":"open_window","arguments":{"url":"https://google.com","reuseWindow":false}}
 ```
 
-**节省约 30% token！**
+**最佳实践：**
+- 简单参数 → 简化语法
+- 复杂参数/JS 代码 → YAML 格式
+- YAML 比 JSON 省约 30% token
 
 ### 窗口管理
 
@@ -554,18 +595,32 @@ electron-mcp/
 
 ### 热重载开发
 
-修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，下次调用工具时自动加载最新代码。
+修改 `src/tools/` 或 `src/utils/` 中的代码后，**无需重启 Electron**，使用 `r-reset` 工具清除缓存即可。
 
 ```bash
 # 启动服务
-./service.sh start
+bash skills/electron-mcp-service/service.sh start
 
 # 修改工具代码
 vim src/tools/ping.js
 
-# 直接测试，自动使用新代码
-curl-rpc "tools/call" "name: ping"
+# 清除缓存
+curl-rpc r-reset
+
+# 测试新代码
+curl-rpc ping
 ```
+
+**工作原理：**
+- `r-reset` 清除 `require.cache` 中的 `/tools/` 和 `/utils/` 模块
+- 下次调用工具时自动重新加载最新代码
+- 无需重启 Electron 进程
+
+**适用范围：**
+- ✅ `src/tools/` - 工具实现
+- ✅ `src/utils/` - 工具函数
+- ❌ `src/main.js` - 需要重启
+- ❌ `src/server/` - 需要重启
 
 ### 添加新工具
 
@@ -618,6 +673,36 @@ const info = getWindowInfo(win1);
 - [YAML 支持](docs/yaml.md) - YAML/JSON 双格式说明
 - [API 文档](http://localhost:8101/docs) - REST API 文档
 - [OpenAPI 规范](openapi.yml) - OpenAPI 3.0 规范
+
+## 🗺️ Roadmap
+
+### 🎯 近期计划
+- [ ] **图像识别集成**
+  - OCR 文字识别（Tesseract）
+  - 图像相似度对比（OpenCV）
+  - UI 元素定位（基于截图）
+  - 验证码识别
+
+- [ ] **多平台支持**
+  - Windows 系统工具适配
+  - macOS 系统工具适配
+  - 跨平台 API 统一抽象
+
+### 🚀 未来规划
+- [ ] **AI 增强**
+  - 自然语言转操作指令
+  - 智能元素定位
+  - 自动化测试生成
+
+- [ ] **性能优化**
+  - 并发窗口管理
+  - 资源池化
+  - 缓存优化
+
+- [ ] **企业功能**
+  - 分布式部署
+  - 任务队列
+  - 监控告警
 
 ## 许可证
 

@@ -1,4 +1,20 @@
 const { app: electronApp } = require("electron");
+
+// Setup Electron flags IMMEDIATELY after require
+if (process.platform === "linux") {
+  process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
+  // electronApp.commandLine.appendSwitch("disable-setuid-sandbox");
+  electronApp.commandLine.appendSwitch("log-level", "3");
+  electronApp.commandLine.appendSwitch("disable-notifications");
+  electronApp.commandLine.appendSwitch("disable-geolocation");
+  electronApp.commandLine.appendSwitch("disable-dev-shm-usage");
+  electronApp.commandLine.appendSwitch("disable-gpu");
+  electronApp.commandLine.appendSwitch("disable-software-rasterizer");
+  electronApp.commandLine.appendSwitch("disable-gpu-compositing");
+  electronApp.commandLine.appendSwitch("disable-gpu-rasterization");
+  electronApp.commandLine.appendSwitch("use-gl", "swiftshader");
+}
+
 const http = require("http");
 const log = require("electron-log");
 const { z } = require("zod");
@@ -13,7 +29,7 @@ const { createMcpServer, setupMcpRoutes } = require("./server/mcp-server");
 const { registerTool } = require("./server/tool-registry");
 
 // Setup
-setupElectronFlags();
+// setupElectronFlags(); // Already done above
 setupErrorHandlers();
 
 // Parse arguments
@@ -32,8 +48,10 @@ log.info("[MCP] Server starting at", new Date().toISOString());
 
 // Initialize auth
 const authManager = new AuthManager();
+global.authManager = authManager; // Make it globally accessible
 const authMiddleware = (req, res, next) => {
   if (!authManager.validateAuth(req)) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Electron MCP"');
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
@@ -41,18 +59,11 @@ const authMiddleware = (req, res, next) => {
 
 // Create servers
 const mcpServer = createMcpServer();
-const app = createExpressApp(authMiddleware);
 const tools = {};
+const app = createExpressApp(authMiddleware, tools);
 
 // Register tools
-const toolModules = [
-  require("./tools/ping"),
-  require("./tools/window-tools"),
-  require("./tools/cdp-tools"),
-  require("./tools/exec-js"),
-  require("./tools/clipboard-tools"),
-  require("./tools/exec-tools"),
-];
+const toolModules = require("./tools");
 
 toolModules.forEach((module) => {
   module((title, description, schema, handler, options) => {
@@ -65,24 +76,27 @@ setupMcpRoutes(app, mcpServer, authMiddleware);
 
 // RPC endpoint with hot reload
 app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
-  const { name, arguments: args } = req.body;
+  let body = req.body;
+  
+  // Parse YAML if Content-Type is application/yaml
+  if (req.get('Content-Type')?.includes('application/yaml')) {
+    try {
+      const yaml = require('js-yaml');
+      const rawBody = await new Promise((resolve) => {
+        let data = '';
+        req.on('data', chunk => data += chunk);
+        req.on('end', () => resolve(data));
+      });
+      body = yaml.load(rawBody);
+    } catch (error) {
+      return res.status(400).json({ error: `Invalid YAML: ${error.message}` });
+    }
+  }
+  
+  const { name, arguments: args } = body;
   try {
-    // Clear require cache for hot reload
-    Object.keys(require.cache).forEach(key => {
-      if (key.includes('/tools/') || key.includes('/utils/')) {
-        delete require.cache[key];
-      }
-    });
-    
-    // Re-load tool modules and find handler
-    const toolModules = [
-      require("./tools/ping"),
-      require("./tools/window-tools"),
-      require("./tools/cdp-tools"),
-      require("./tools/exec-js"),
-      require("./tools/clipboard-tools"),
-      require("./tools/exec-tools"),
-    ];
+    // Re-load tool modules
+    const toolModules = require('./tools');
     
     let handler = null;
     let schema = null;
@@ -136,6 +150,85 @@ app.get("/rpc/tools", authMiddleware, (req, res) => {
   } else {
     res.json({ tools: allTools });
   }
+});
+
+// Static file server for uploads/downloads
+const fs = require("fs");
+const path = require("path");
+const serveIndex = require("serve-index");
+const FILES_DIR = path.join(require("os").homedir(), "electron-mcp-files");
+if (!fs.existsSync(FILES_DIR)) {
+  fs.mkdirSync(FILES_DIR, { recursive: true });
+}
+
+// Serve files with directory listing (auth required)
+app.use("/files", authMiddleware, require("express").static(FILES_DIR));
+app.use("/files", authMiddleware, serveIndex(FILES_DIR, { icons: true, view: "details" }));
+
+// Dynamic tool endpoints: /rpc/{tool_name}
+Object.values(tools).flat().forEach(tool => {
+  app.post(`/rpc/${tool.name}`, authMiddleware, async (req, res) => {
+    let body = req.body;
+    
+    // Parse YAML if Content-Type is application/yaml
+    if (req.get('Content-Type')?.includes('application/yaml')) {
+      try {
+        const yaml = require('js-yaml');
+        const rawBody = await new Promise((resolve) => {
+          let data = '';
+          req.on('data', chunk => data += chunk);
+          req.on('end', () => resolve(data));
+        });
+        body = yaml.load(rawBody) || {};
+      } catch (error) {
+        return res.status(400).json({ error: `Invalid YAML: ${error.message}` });
+      }
+    }
+    
+    try {
+      // Re-load tool modules
+      const toolModules = require('./tools');
+      
+      let handler = null;
+      let schema = null;
+      
+      toolModules.forEach(module => {
+        module((name, desc, inputSchema, fn) => {
+          if (name === tool.name) {
+            handler = fn;
+            schema = inputSchema;
+          }
+        });
+      });
+      
+      if (!handler) {
+        throw new Error(`Tool '${tool.name}' not found`);
+      }
+      
+      const validatedArgs = schema.parse(body || {});
+      const result = await handler(validatedArgs);
+      
+      // Support YAML response
+      const accept = req.headers.accept || "application/json";
+      if (accept.includes("application/yaml") || accept.includes("text/yaml")) {
+        const yaml = require("js-yaml");
+        res.type("yaml").send(yaml.dump({ result }));
+      } else {
+        res.json({ result });
+      }
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        const errorMsg = error.errors.map(e => e.message).join(', ');
+        return res.json({ 
+          result: { 
+            content: [{ type: "text", text: errorMsg }], 
+            isError: true 
+          } 
+        });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
 });
 
 // Start server

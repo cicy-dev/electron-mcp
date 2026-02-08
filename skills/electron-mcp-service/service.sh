@@ -3,7 +3,7 @@
 
 COMMAND=${1:-start}
 PORT=${2:-8101}
-DISPLAY_NUM=${3:-:2}
+DISPLAY_NUM=${3:-:1}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/electron-mcp-${PORT}.log"
 PID_FILE="/tmp/electron-mcp-${PORT}.pid"

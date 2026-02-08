@@ -4,8 +4,9 @@
 
 ## 特性
 
-- 🚀 **YAML 优先** - 默认 YAML 格式，节省 30-45% token
-- 📝 **JSON 支持** - 使用 `--json` 或 `-j` 标志切换到 JSON
+- 🚀 **简化语法** - 最简洁的调用方式：`curl-rpc tool_name key=value`
+- 📝 **YAML 优先** - 默认 YAML 格式，节省 30% token
+- 🔄 **JSON 支持** - 使用 `--json` 或 `-j` 标志切换到 JSON
 - ✅ **完善的错误处理** - 清晰的错误提示和建议
 - 🔒 **Token 认证** - 自动从 `~/electron-mcp-token.txt` 读取
 
@@ -33,7 +34,23 @@ pip install yq --break-system-packages
 
 ## 使用方法
 
-### YAML 格式（默认，推荐）
+### 简化语法（推荐）
+
+```bash
+# 无参数工具
+curl-rpc ping
+
+# 带参数（key=value 格式）
+curl-rpc open_window url=https://google.com
+
+# 多参数
+curl-rpc set_window_bounds win_id=1 x=100 y=100 width=800 height=600
+
+# 文本参数
+curl-rpc cdp_type_text win_id=1 text="Hello World"
+```
+
+### YAML 格式（完整语法）
 
 ```bash
 # 简单调用
@@ -72,47 +89,31 @@ curl-rpc "tools/call" -j '{"name":"open_window","arguments":{"url":"https://goog
 ### 窗口管理
 
 ```bash
-# 打开窗口
+# 简化语法
+curl-rpc open_window url=https://google.com
+curl-rpc get_windows
+curl-rpc get_window_info win_id=1
+curl-rpc set_window_bounds win_id=1 width=1280 height=720
+curl-rpc close_window win_id=1
+
+# 完整 YAML 语法
 curl-rpc "tools/call" "
 name: open_window
 arguments:
   url: https://google.com
-"
-
-# 获取所有窗口
-curl-rpc "tools/call" "name: get_windows"
-
-# 设置窗口大小
-curl-rpc "tools/call" "
-name: set_window_bounds
-arguments:
-  win_id: 1
-  width: 1280
-  height: 720
 "
 ```
 
 ### CDP 操作
 
 ```bash
-# 点击
-curl-rpc "tools/call" "
-name: cdp_click
-arguments:
-  win_id: 1
-  x: 100
-  y: 100
-"
+# 简化语法
+curl-rpc cdp_click win_id=1 x=100 y=100
+curl-rpc cdp_type_text win_id=1 text="Hello World"
+curl-rpc cdp_scroll win_id=1 y=500
+curl-rpc cdp_press_enter win_id=1
 
-# 输入文本
-curl-rpc "tools/call" "
-name: cdp_type_text
-arguments:
-  win_id: 1
-  text: Hello World
-"
-
-# 粘贴（支持三种方法）
+# 完整 YAML 语法
 curl-rpc "tools/call" "
 name: cdp_press_paste
 arguments:
@@ -124,59 +125,47 @@ arguments:
 ### 剪贴板操作
 
 ```bash
-# 写入文本
+# 简化语法
+curl-rpc clipboard_write_text text="Hello from clipboard"
+curl-rpc clipboard_read_text
+
+# 完整 YAML 语法
 curl-rpc "tools/call" "
 name: clipboard_write_text
 arguments:
   text: Hello from clipboard
 "
-
-# 读取文本
-curl-rpc "tools/call" "name: clipboard_read_text"
 ```
 
 ### 执行命令
 
 ```bash
-# Shell 命令
+# 简化语法
+curl-rpc exec_shell command="ls -la"
+curl-rpc exec_python code="print(2+2)"
+curl-rpc exec_npm command="--version"
+
+# 完整 YAML 语法
 curl-rpc "tools/call" "
 name: exec_shell
 arguments:
   command: ls -la
-"
-
-# Python 代码
-curl-rpc "tools/call" "
-name: exec_python
-arguments:
-  code: print(2+2)
-"
-
-# npm 命令
-curl-rpc "tools/call" "
-name: exec_npm
-arguments:
-  command: --version
 "
 ```
 
 ### JavaScript 执行
 
 ```bash
-# 执行 JS
+# 简化语法
+curl-rpc exec_js win_id=1 code="document.title"
+curl-rpc get_element_client_bound win_id=1 selector="#btn1"
+
+# 完整 YAML 语法
 curl-rpc "tools/call" "
 name: exec_js
 arguments:
   win_id: 1
   code: document.title
-"
-
-# 获取元素位置
-curl-rpc "tools/call" "
-name: get_element_client_bound
-arguments:
-  win_id: 1
-  selector: '#btn1'
 "
 ```
 
@@ -214,15 +203,29 @@ cat ~/electron-mcp-token.txt
 
 ## 格式对比
 
-**YAML（推荐）：**
-- 更简洁，节省约 30% token
-- 支持多行，易读
-- 无需转义引号
+**简化语法（最简洁）：**
+```bash
+curl-rpc open_window url=https://google.com
+```
 
-**JSON：**
-- 标准格式
-- 工具支持广泛
-- 适合程序生成
+**YAML（推荐，复杂参数）：**
+```bash
+curl-rpc "
+name: open_window
+arguments:
+  url: https://google.com
+"
+```
+
+**JSON（标准）：**
+```bash
+curl-rpc "tools/call" --json '{"name":"open_window","arguments":{"url":"https://google.com"}}'
+```
+
+**优势对比：**
+- 简化语法：最简洁，适合简单参数
+- YAML：可读性好，支持多行，省约 30% token
+- JSON：标准格式，工具支持广泛
 
 ## 故障排除
 

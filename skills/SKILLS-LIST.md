@@ -1,90 +1,77 @@
 # Skills List
 
-## Available Skills
+## 服务管理
 
-### 1. curl-rpc - MCP RPC Client Tool
-**Location:** `./curl-rpc`
+### electron-mcp server
 
-**Description:** 轻量级 MCP RPC 调用工具，用于调用 Electron MCP 服务器。
-
-**Features:**
-- 🚀 YAML 优先 - 默认 YAML 格式，节省 30-45% token
-- 📝 JSON 支持 - 使用 `--json` 或 `-j` 标志
-- ✅ 完善的错误处理 - 清晰的错误提示
-- 🔒 Token 认证 - 自动读取认证信息
-
-**Installation:**
 ```bash
-cp curl-rpc/curl-rpc ~/.local/bin/
-chmod +x ~/.local/bin/curl-rpc
+bash skills/electron-mcp-service/service.sh start    # 启动服务
+bash skills/electron-mcp-service/service.sh stop     # 停止服务
+bash skills/electron-mcp-service/service.sh status   # 查看状态
+bash skills/electron-mcp-service/service.sh logs     # 查看日志
+bash skills/electron-mcp-service/service.sh restart  # 重启服务
 ```
 
-**Usage:**
+**验证服务:**
 ```bash
-# YAML format (default)
-curl-rpc "tools/call" "name: ping"
-
-# JSON format
-curl-rpc "tools/call" --json '{"name":"ping"}'
+curl-rpc "tools/call" "name: ping"  # 应返回 "Pong"
 ```
-
-**Documentation:** [curl-rpc/README.md](./curl-rpc/README.md)
 
 ---
 
-### 2. Electron MCP Server
-**Location:** `/home/w3c_offical/projects/electron-mcp/skills`
+## 可用技能
 
-**Description:** 基于 Electron 的 MCP 服务器，提供完整的浏览器自动化和网页操作功能。
+### electron-mcp-service
+**位置:** `./electron-mcp-service`  
+**功能:** 浏览器自动化服务
 
-**Features:**
-- 🚀 YAML 优先 - 默认 YAML 格式，节省 30-45% token
-- 🔥 热重载 - 修改工具代码无需重启 Electron
-- 🪟 窗口管理 - 多窗口支持，智能复用
-- 👤 多账户隔离 - Cookie/Storage 完全隔离
-- 🎯 CDP 操作 - 鼠标、键盘、页面控制
-- 📸 截图与监控 - 网络请求、控制台日志
-- 🔧 轻量工具 - curl-rpc 命令行工具
-
-**Tools:**
-- Window Management: `open_window`, `close_window`, `get_windows`, `set_window_bounds`
-- CDP Operations: `cdp_click`, `cdp_type_text`, `cdp_press_paste`, `cdp_scroll`
-- JavaScript Execution: `exec_js`, `inject_auto_run_when_dom_ready_js`
-- Clipboard: `clipboard_write_text`, `clipboard_read_text`, `clipboard_write_image`
-- Execution: `exec_shell`, `exec_python`, `exec_npm`
-- Screenshot: `webpage_screenshot_and_to_clipboard`, `webpage_snapshot`
-- Network: `get_requests`, `filter_requests`, `get_console_logs`
-
-**Usage:**
 ```bash
-# Start service
-cd /home/w3c_offical/projects/electron-mcp/skills
-./service.sh start
-
-# Use curl-rpc tool
+bash skills/electron-mcp-service/service.sh start
 curl-rpc "tools/call" "name: ping"
-curl-rpc "tools/call" "
-name: open_window
-arguments:
-  url: https://google.com
-"
 ```
 
-**Documentation:**
-- [README.md](./README.md) - Full documentation
-- [examples/httpserver/](./examples/httpserver/) - HTTP server examples
-- [docs/yaml.md](./docs/yaml.md) - YAML format guide
+[文档](./electron-mcp-service/README.md)
 
 ---
 
-## How to Add New Skills
+### curl-rpc
+**位置:** `./curl-rpc`  
+**功能:** MCP RPC 命令行工具
 
-1. Create skill directory in `/home/w3c_offical/projects/electron-mcp/skills/`
-2. Add skill documentation (README.md)
-3. Update this list
-4. Test the skill
+```bash
+curl-rpc "tools/call" "name: ping"
+```
 
-## Skill Template
+[文档](./curl-rpc/README.md)
 
-See `./skills/template-rpc/` for creating new skills.
+---
 
+### download-douyin-video
+**位置:** `./download-douyin-video`  
+**功能:** 下载抖音视频
+
+```bash
+bash skills/download-douyin-video/download-douyin-video.sh <url>
+```
+
+**依赖:** electron-mcp 服务 + jq
+
+[文档](./download-douyin-video/README.md)
+
+---
+
+### aistudio
+**位置:** `./aistudio`  
+**功能:** AI Studio 自动化
+
+[文档](./aistudio/README.md)
+
+---
+
+## 添加新技能
+
+```bash
+bash skills/create-skill.sh my-skill
+```
+
+参考模板：`./template-rpc/`
