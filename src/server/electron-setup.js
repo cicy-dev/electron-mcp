@@ -4,6 +4,7 @@ const log = require("electron-log");
 function setupElectronFlags() {
   if (process.platform === "linux") {
     process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
+    electronApp.commandLine.appendSwitch("no-sandbox");
     electronApp.commandLine.appendSwitch("log-level", "3");
     electronApp.commandLine.appendSwitch("disable-notifications");
     electronApp.commandLine.appendSwitch("disable-geolocation");
