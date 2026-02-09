@@ -14,7 +14,7 @@ bash skills/electron-mcp-service/service.sh restart  # 重启服务
 
 **验证服务:**
 ```bash
-curl-rpc "name: ping"  # 应返回 "Pong"
+curl-rpc ping  # 应返回 "Pong"
 ```
 
 ---
