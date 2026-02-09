@@ -53,8 +53,10 @@ curl-rpc cdp_type_text win_id=1 text="Hello World"
 ### YAML 格式（完整语法）
 
 ```bash
-# 简单调用
-curl-rpc "name: ping"
+# 简单调用（多行格式）
+curl-rpc "
+name: ping
+"
 
 # 带参数
 curl-rpc "
