@@ -9,10 +9,10 @@
 bash skills/electron-mcp-service/service.sh start
 
 # 验证服务
-curl-rpc "tools/call" "name: ping"
+curl-rpc "name: ping"
 
 # 使用工具
-curl-rpc "tools/call" "
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com

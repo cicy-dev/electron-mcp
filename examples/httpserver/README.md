@@ -16,13 +16,13 @@ cd examples/httpserver
 python3 -m http.server 8889
 
 # Or using MCP tool
-curl-rpc "tools/call" --json '{"name":"exec_shell","arguments":{"command":"cd ./examples/httpserver && python3 -m http.server 8889 > /dev/null 2>&1 & echo $!"}}'
+curl-rpc --json '{"name":"exec_shell","arguments":{"command":"cd ./examples/httpserver && python3 -m http.server 8889 > /dev/null 2>&1 & echo $!"}}'
 ```
 
 ### Open in Electron Window
 
 ```bash
-curl-rpc "tools/call" --json '{"name":"open_window","arguments":{"url":"http://localhost:8889/pyautogui-test.html"}}'
+curl-rpc --json '{"name":"open_window","arguments":{"url":"http://localhost:8889/pyautogui-test.html"}}'
 ```
 
 ## PyAutoGUI Test Example
@@ -35,23 +35,23 @@ The `pyautogui-test.html` page demonstrates:
 ### Get Button Position
 
 ```bash
-curl-rpc "tools/call" --json '{"name":"get_element_client_bound","arguments":{"win_id":1,"selector":"#btn1"}}'
+curl-rpc --json '{"name":"get_element_client_bound","arguments":{"win_id":1,"selector":"#btn1"}}'
 ```
 
 ### Click with CDP
 
 ```bash
-curl-rpc "tools/call" --json '{"name":"cdp_click","arguments":{"win_id":1,"x":162,"y":230}}'
+curl-rpc --json '{"name":"cdp_click","arguments":{"win_id":1,"x":162,"y":230}}'
 ```
 
 ### Click with PyAutoGUI
 
 ```bash
 # Install PyAutoGUI first
-curl-rpc "tools/call" --json '{"name":"exec_shell","arguments":{"command":"pip install pyautogui --break-system-packages"}}'
+curl-rpc --json '{"name":"exec_shell","arguments":{"command":"pip install pyautogui --break-system-packages"}}'
 
 # Click button (adjust coordinates based on window position)
-curl-rpc "tools/call" --json '{"name":"exec_python","arguments":{"code":"import pyautogui; pyautogui.click(188, 303)"}}'
+curl-rpc --json '{"name":"exec_python","arguments":{"code":"import pyautogui; pyautogui.click(188, 303)"}}'
 ```
 
 ## Notes

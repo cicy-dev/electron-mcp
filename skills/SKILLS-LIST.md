@@ -14,7 +14,7 @@ bash skills/electron-mcp-service/service.sh restart  # 重启服务
 
 **验证服务:**
 ```bash
-curl-rpc "tools/call" "name: ping"  # 应返回 "Pong"
+curl-rpc "name: ping"  # 应返回 "Pong"
 ```
 
 ---
@@ -27,7 +27,7 @@ curl-rpc "tools/call" "name: ping"  # 应返回 "Pong"
 
 ```bash
 bash skills/electron-mcp-service/service.sh start
-curl-rpc "tools/call" "name: ping"
+curl-rpc "name: ping"
 ```
 
 [文档](./electron-mcp-service/README.md)
@@ -39,7 +39,7 @@ curl-rpc "tools/call" "name: ping"
 **功能:** MCP RPC 命令行工具
 
 ```bash
-curl-rpc "tools/call" "name: ping"
+curl-rpc "name: ping"
 ```
 
 [文档](./curl-rpc/README.md)

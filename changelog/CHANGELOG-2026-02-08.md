@@ -57,7 +57,7 @@ pip install yq --break-system-packages
 ### YAML 格式（推荐）
 
 ```bash
-curl-rpc "tools/call" "
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
@@ -67,7 +67,7 @@ arguments:
 ### 设置窗口
 
 ```bash
-curl-rpc "tools/call" "
+curl-rpc "
 name: set_window_bounds
 arguments:
   win_id: 1
@@ -81,7 +81,7 @@ arguments:
 ### JSON 格式
 
 ```bash
-curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
+curl-rpc --json '{"name":"get_window_info","arguments":{"win_id":1}}'
 ```
 
 ## 性能提升

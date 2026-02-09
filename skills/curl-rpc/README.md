@@ -54,17 +54,17 @@ curl-rpc cdp_type_text win_id=1 text="Hello World"
 
 ```bash
 # 简单调用
-curl-rpc "tools/call" "name: ping"
+curl-rpc "name: ping"
 
 # 带参数
-curl-rpc "tools/call" "
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
 "
 
 # 多参数
-curl-rpc "tools/call" "
+curl-rpc "
 name: set_window_bounds
 arguments:
   win_id: 1
@@ -79,9 +79,9 @@ arguments:
 
 ```bash
 # 使用 --json 或 -j 标志
-curl-rpc "tools/call" --json '{"name":"ping"}'
+curl-rpc --json '{"name":"ping"}'
 
-curl-rpc "tools/call" -j '{"name":"open_window","arguments":{"url":"https://google.com"}}'
+curl-rpc -j '{"name":"open_window","arguments":{"url":"https://google.com"}}'
 ```
 
 ## 示例
@@ -97,7 +97,7 @@ curl-rpc set_window_bounds win_id=1 width=1280 height=720
 curl-rpc close_window win_id=1
 
 # 完整 YAML 语法
-curl-rpc "tools/call" "
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
@@ -114,7 +114,7 @@ curl-rpc cdp_scroll win_id=1 y=500
 curl-rpc cdp_press_enter win_id=1
 
 # 完整 YAML 语法
-curl-rpc "tools/call" "
+curl-rpc "
 name: cdp_press_paste
 arguments:
   win_id: 1
@@ -130,7 +130,7 @@ curl-rpc clipboard_write_text text="Hello from clipboard"
 curl-rpc clipboard_read_text
 
 # 完整 YAML 语法
-curl-rpc "tools/call" "
+curl-rpc "
 name: clipboard_write_text
 arguments:
   text: Hello from clipboard
@@ -146,7 +146,7 @@ curl-rpc exec_python code="print(2+2)"
 curl-rpc exec_npm command="--version"
 
 # 完整 YAML 语法
-curl-rpc "tools/call" "
+curl-rpc "
 name: exec_shell
 arguments:
   command: ls -la
@@ -161,7 +161,7 @@ curl-rpc exec_js win_id=1 code="document.title"
 curl-rpc get_element_client_bound win_id=1 selector="#btn1"
 
 # 完整 YAML 语法
-curl-rpc "tools/call" "
+curl-rpc "
 name: exec_js
 arguments:
   win_id: 1
@@ -180,11 +180,11 @@ $ curl-rpc
 Usage: curl-rpc <method> [--json|-j] <params>
 
 # 无效 YAML
-$ curl-rpc "tools/call" "invalid: yaml: syntax:"
+$ curl-rpc "invalid: yaml: syntax:"
 ❌ Error: Invalid YAML format
 
 # 服务器错误
-$ curl-rpc "tools/call" "name: invalid_tool"
+$ curl-rpc "name: invalid_tool"
 ❌ Error: HTTP 500
 {"error":"Tool 'invalid_tool' not found"}
 ```
@@ -219,7 +219,7 @@ arguments:
 
 **JSON（标准）：**
 ```bash
-curl-rpc "tools/call" --json '{"name":"open_window","arguments":{"url":"https://google.com"}}'
+curl-rpc --json '{"name":"open_window","arguments":{"url":"https://google.com"}}'
 ```
 
 **优势对比：**

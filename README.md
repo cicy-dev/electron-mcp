@@ -144,7 +144,7 @@ npm install
 bash skills/electron-mcp-service/service.sh start
 
 # 验证服务
-curl-rpc "tools/call" "name: ping"
+curl-rpc "name: ping"
 ```
 
 ### 使用技能
@@ -299,7 +299,7 @@ curl-rpc cdp_type_text win_id=1 text="Hello World"
 curl-rpc close_window win_id=1
 
 # YAML 格式（完整语法）
-curl-rpc "tools/call" "
+curl-rpc "
 name: open_window
 arguments:
   url: https://google.com
@@ -307,7 +307,7 @@ arguments:
 "
 
 # JSON 格式
-curl-rpc "tools/call" --json '{"name":"get_window_info","arguments":{"win_id":1}}'
+curl-rpc --json '{"name":"get_window_info","arguments":{"win_id":1}}'
 ```
 
 **三种格式对比：**
