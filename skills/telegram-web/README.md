@@ -7,7 +7,16 @@
 - 🌐 打开 Telegram Web
 - 💬 发送消息到指定聊天
 - 📖 读取聊天消息
-- 🤖 支持自动化操作
+- 🤖 创建 Telegram Bot 并获取 Token
+- 📊 从 IndexedDB 读取数据（用户、聊天、消息）
+- 🔧 自动注入 JS 工具函数
+- 📱 支持二维码登录（远程使用）
+
+## 核心文件
+
+- `telegram-web.sh` - 主脚本
+- `inject.js` - 自动注入的 JS 工具函数
+- `README.md` - 本文档
 
 ## 依赖
 
@@ -55,6 +64,17 @@ bash skills/telegram-web/telegram-web.sh login
 bash skills/telegram-web/telegram-web.sh open
 ```
 
+### 获取当前账户信息
+
+```bash
+bash skills/telegram-web/telegram-web.sh account
+```
+
+返回：
+- User ID
+- Account ID
+- DC ID
+
 ### 获取登录二维码（远程使用）
 
 ```bash
@@ -65,6 +85,49 @@ bash skills/telegram-web/telegram-web.sh qrcode
 - 通过 VNC 查看并扫描
 - 下载到本地扫描
 - 使用 `xdg-open ~/Desktop/screenshot/telegram-qrcode.png` 打开
+
+### 创建 Telegram Bot
+
+```bash
+bash skills/telegram-web/telegram-web.sh create_bot "Bot Name" "bot_username"
+```
+
+自动完成：
+1. 打开 BotFather
+2. 创建新 bot
+3. 获取 token
+4. 保存到 `~/telegram-bots/bot_username.token`
+
+示例：
+```bash
+bash skills/telegram-web/telegram-web.sh create_bot "My TTS Bot" "my_tts_bot"
+```
+
+### 从 IndexedDB 获取数据
+
+#### 获取用户列表
+
+```bash
+bash skills/telegram-web/telegram-web.sh users 10
+```
+
+返回用户信息：id, username, firstName, lastName, phone
+
+#### 获取聊天数据
+
+```bash
+bash skills/telegram-web/telegram-web.sh db_chats 10
+```
+
+返回聊天信息：id, title, type
+
+#### 获取消息
+
+```bash
+bash skills/telegram-web/telegram-web.sh db_messages 20
+```
+
+返回消息信息：id, message, date, peerId
 
 ### 发送消息
 
@@ -85,6 +148,66 @@ bash skills/telegram-web/telegram-web.sh read "Chat Name"
 ```bash
 bash skills/telegram-web/telegram-web.sh --help
 ```
+
+## 自动注入的 JS 工具
+
+`inject.js` 文件会在 Telegram Web 页面加载时自动注入，提供以下全局函数：
+
+### window.getIndexedDBRows(dbName, storeName, limit)
+
+从 IndexedDB 读取数据。
+
+**参数：**
+- `dbName` - 数据库名称（如 "tweb-account-1"）
+- `storeName` - Store 名称（如 "messages", "users", "chats"）
+- `limit` - 限制返回数量（默认 100）
+
+**示例：**
+```javascript
+// 获取消息
+const messages = await getIndexedDBRows('tweb-account-1', 'messages', 50);
+
+// 获取用户
+const users = await getIndexedDBRows('tweb-account-1', 'users', 20);
+
+// 获取聊天
+const chats = await getIndexedDBRows('tweb-account-1', 'chats', 10);
+```
+
+### window.listIndexedDB()
+
+列出所有 IndexedDB 数据库和 stores。
+
+**示例：**
+```javascript
+const dbs = await listIndexedDB();
+console.log(dbs);
+// {
+//   "tweb-account-1": ["chats", "dialogs", "messages", "users", ...],
+//   "tweb-account-2": [...],
+//   ...
+// }
+```
+
+## IndexedDB 数据结构
+
+### 数据库
+
+- `tweb-account-1` - 账户 1 的数据
+- `tweb-account-2` - 账户 2 的数据
+- `tweb-account-3` - 账户 3 的数据
+- `tweb-account-4` - 账户 4 的数据
+- `tweb-common` - 公共数据
+
+### Stores（每个账户数据库）
+
+- `chats` / `chats__encrypted` - 聊天信息
+- `dialogs` / `dialogs__encrypted` - 对话列表
+- `messages` / `messages__encrypted` - 消息
+- `session` / `session__encrypted` - 会话数据
+- `stickerSets` / `stickerSets__encrypted` - 贴纸集
+- `users` / `users__encrypted` - 用户信息
+- `webapp` / `webapp__encrypted` - Web 应用数据
 
 ## 工作流程
 

@@ -21,8 +21,19 @@ Telegram Web 自动化工具
   $0 open                    # 打开 Telegram Web
   $0 login                   # 登录指南
   $0 qrcode                  # 获取登录二维码（远程使用）
+  $0 account                 # 获取当前账户信息
   $0 chats                   # 获取聊天列表
   $0 chatid <chat>           # 获取聊天 ID
+  $0 users [limit]           # 从 IndexedDB 获取用户列表
+  $0 db_chats [limit]        # 从 IndexedDB 获取聊天数据
+  $0 db_messages [limit]     # 从 IndexedDB 获取消息
+  
+  添加 --detail 参数显示完整数据：
+  $0 users 10 --detail       # 显示完整用户数据
+  $0 db_chats 10 --detail    # 显示完整聊天数据
+  $0 db_messages 20 --detail # 显示完整消息数据
+  $0 create_bot <name> <username>  # 创建新 bot 并获取 token
+  $0 get_messages <chat_id> [limit]  # 从 IndexedDB 获取消息
   $0 send <chat> <message>   # 发送消息
   $0 read <chat>             # 读取消息
   $0 --help                  # 显示帮助
@@ -32,6 +43,8 @@ Telegram Web 自动化工具
   $0 qrcode                  # 获取二维码截图
   $0 chats                   # 查看所有聊天
   $0 chatid "Saved Messages" # 获取聊天 ID
+  $0 get_messages 123456789 50  # 获取 50 条消息
+  $0 create_bot "My Bot" "my_test_bot"  # 创建 bot
   $0 send "Saved Messages" "Hello"
   $0 read "Saved Messages"
 
@@ -198,7 +211,96 @@ get_chats() {
     echo "📋 Chat list (top 20):"
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Array.from(document.querySelectorAll('.chatlist-chat')).slice(0,20).map(c=>c.querySelector('.peer-title')?.textContent.trim()).filter(x=>x).join('\\\\n')\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Promise.all([getIndexedDBRows('tweb-account-1', 'dialogs', 20), getIndexedDBRows('tweb-account-1', 'users', 100), getIndexedDBRows('tweb-account-1', 'chats', 100)]).then(([dialogs, users, chats]) => JSON.stringify(dialogs.map(d => { const user = users.find(u => u.id === d.peerId); const chat = chats.find(c => c.id === Math.abs(d.peerId)); return { chatId: d.peerId, name: user ? (user.username || user.first_name) : (chat?.title || 'Unknown') }; }), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+}
+
+# 获取当前账户信息
+get_account() {
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "👤 Current Account Info:"
+    echo ""
+    
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"JSON.stringify({ userId: JSON.parse(localStorage.getItem('user_auth') || '{}').id, accountId: 'tweb-account-1', dcId: JSON.parse(localStorage.getItem('user_auth') || '{}').dcID, date: new Date(JSON.parse(localStorage.getItem('user_auth') || '{}').date * 1000).toISOString() }, null, 2)\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+}
+
+# 从 IndexedDB 获取用户列表
+get_users() {
+    local limit="${1:-10}"
+    local detail="${2:-false}"
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "👥 Users from IndexedDB (limit: $limit):"
+    echo ""
+    
+    if [ "$detail" = "--detail" ]; then
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'users', $limit).then(users => JSON.stringify(users, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    else
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'users', $limit).then(users => JSON.stringify(users.map(u => ({ id: u.id, username: u.username, firstName: u.first_name, lastName: u.last_name })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    fi
+}
+
+# 从 IndexedDB 获取聊天数据
+get_db_chats() {
+    local limit="${1:-10}"
+    local detail="${2:-false}"
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "💬 Chats from IndexedDB (limit: $limit):"
+    echo ""
+    
+    if [ "$detail" = "--detail" ]; then
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'chats', $limit).then(chats => JSON.stringify(chats, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    else
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'chats', $limit).then(chats => JSON.stringify(chats.map(c => ({ id: c.id, title: c.title, type: c._ })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    fi
+}
+
+# 从 IndexedDB 获取消息
+get_db_messages() {
+    local limit="${1:-20}"
+    local detail="${2:-false}"
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "📨 Messages from IndexedDB (limit: $limit):"
+    echo ""
+    
+    if [ "$detail" = "--detail" ]; then
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', $limit).then(msgs => JSON.stringify(msgs, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    else
+        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', $limit).then(msgs => JSON.stringify(msgs.map(m => ({ id: m.id, message: m.message?.substring(0, 100), date: new Date(m.date * 1000).toISOString(), peerId: m.peerId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    fi
 }
 
 # 获取聊天 ID
@@ -245,6 +347,107 @@ get_chat_id() {
     else
         echo "❌ Failed to get chat ID"
     fi
+}
+
+# 创建 bot 并获取 token
+create_bot() {
+    local bot_name="$1"
+    local bot_username="$2"
+    
+    if [ -z "$bot_name" ] || [ -z "$bot_username" ]; then
+        echo "❌ Error: Missing bot name or username"
+        echo "Usage: $0 create_bot <name> <username>"
+        exit 1
+    fi
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "🤖 Creating bot: $bot_name (@$bot_username)..."
+    
+    # 打开 BotFather
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"document.querySelector('input[type=\\\"search\\\"]')?.click()\"}}" > /dev/null 2>&1
+    sleep 1
+    
+    curl-rpc cdp_press_selectall win_id="$WIN_ID" > /dev/null 2>&1
+    curl-rpc cdp_type_text win_id="$WIN_ID" text="BotFather" > /dev/null
+    sleep 2
+    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    sleep 2
+    
+    # 发送 /newbot
+    curl-rpc cdp_type_text win_id="$WIN_ID" text="/newbot" > /dev/null
+    sleep 1
+    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    sleep 3
+    
+    # 输入 bot 名称
+    curl-rpc cdp_type_text win_id="$WIN_ID" text="$bot_name" > /dev/null
+    sleep 1
+    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    sleep 3
+    
+    # 输入 bot username
+    curl-rpc cdp_type_text win_id="$WIN_ID" text="$bot_username" > /dev/null
+    sleep 1
+    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    sleep 5
+    
+    # 提取 token
+    curl-rpc cdp_scroll win_id="$WIN_ID" y=500 > /dev/null 2>&1
+    sleep 2
+    
+    token=$(curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Array.from(document.querySelectorAll('.bubble-content')).map(e=>e.innerText).join('\\\\n').match(/\\\\d{10}:[A-Za-z0-9_-]{35}/)?.[0] || 'not found'\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    
+    if [ "$token" = "not found" ] || [ -z "$token" ]; then
+        echo "❌ Failed to create bot. Username may be taken."
+        echo "Try another username."
+        exit 1
+    fi
+    
+    echo "✅ Bot created successfully!"
+    echo ""
+    echo "Bot Name: $bot_name"
+    echo "Username: @$bot_username"
+    echo "Token: $token"
+    echo ""
+    echo "Token saved to: ~/telegram-bots/$bot_username.token"
+    
+    # 保存 token
+    mkdir -p ~/telegram-bots
+    echo "$token" > ~/telegram-bots/$bot_username.token
+}
+
+# 从 IndexedDB 获取消息
+get_messages() {
+    local chat_id="$1"
+    local limit="${2:-50}"
+    
+    if [ -z "$chat_id" ]; then
+        echo "❌ Error: Missing chat_id"
+        echo "Usage: $0 get_messages <chat_id> [limit]"
+        exit 1
+    fi
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "📥 Getting messages from chat $chat_id (limit: $limit)..."
+    echo ""
+    
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', 500).then(msgs => { const chatMsgs = msgs.filter(m => m.peerId === $chat_id).slice(-$limit); return JSON.stringify(chatMsgs.map(m => ({ id: m.id, message: m.message, date: new Date(m.date * 1000).toISOString(), fromId: m.fromId })), null, 2); })\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 发送消息
@@ -351,9 +554,33 @@ main() {
             check_deps
             get_chats
             ;;
+        account)
+            check_deps
+            get_account
+            ;;
+        users)
+            check_deps
+            get_users "$2" "$3"
+            ;;
+        db_chats)
+            check_deps
+            get_db_chats "$2" "$3"
+            ;;
+        db_messages)
+            check_deps
+            get_db_messages "$2" "$3"
+            ;;
         chatid)
             check_deps
             get_chat_id "$2"
+            ;;
+        create_bot)
+            check_deps
+            create_bot "$2" "$3"
+            ;;
+        get_messages)
+            check_deps
+            get_messages "$2" "$3"
             ;;
         send)
             check_deps
