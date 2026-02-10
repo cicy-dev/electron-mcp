@@ -1,6 +1,6 @@
 {
   "name": "electron-rcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Electron-based MCP server for browser automation and system control",
   "main": "src/main.js",
   "bin": {
