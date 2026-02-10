@@ -9,7 +9,7 @@ const config = require('./config');
  * 2. Open or reuse an AI Studio window
  * 3. Perform automated UI interactions (focus input, type text, etc.)
  * 
- * Note: The Electron remote debugger is also available at port 9222 if raw CDP access is needed,
+ * Note: The Electron remote debugger is also available at port 9221 if raw CDP access is needed,
  * but this script uses the MCP RPC wrapper for convenience and authentication management.
  */
 async function main() {

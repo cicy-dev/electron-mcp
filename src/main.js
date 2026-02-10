@@ -234,16 +234,18 @@ Object.values(tools).flat().forEach(tool => {
 // Start server
 const server = http.createServer(app);
 
+// 必须在 whenReady 之前设置调试端口
+electronApp.commandLine.appendSwitch("remote-debugging-port", "9221");
+log.info("[MCP] Remote debugging enabled on port 9221");
+
 electronApp.whenReady().then(() => {
-  electronApp.commandLine.appendSwitch("remote-debugging-port", "9222");
-  log.info("[MCP] Remote debugging enabled on port 9222");
 
   server.listen(PORT, () => {
     log.info(`[MCP] Log file: ${config.logFilePath}`);
     log.info(`[MCP] Server listening on http://localhost:${PORT}`);
     log.info(`[MCP] SSE endpoint: http://localhost:${PORT}/mcp`);
     log.info(`[MCP] REST API docs: http://localhost:${PORT}/docs`);
-    log.info(`[MCP] Remote debugger: http://localhost:9222`);
+    log.info(`[MCP] Remote debugger: http://localhost:9221`);
 
     if (START_URL) {
       createWindow({ url: START_URL }, 0);
