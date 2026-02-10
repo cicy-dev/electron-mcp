@@ -28,6 +28,18 @@ npm install -g curl-rpc
 bash skills/electron-mcp-service/service.sh start
 ```
 
+## ⚠️ Known Limitations
+
+1. **send command**: Search functionality is unreliable. Recommended workflow:
+   - Manually open the target chat in Telegram Web first
+   - Then use other automation features (read, send to current chat)
+   
+2. **messages store**: IndexedDB only caches loaded messages
+   - Open the chat in Telegram Web to load messages
+   - Then use `get_messages` to query from IndexedDB
+   
+3. **chatId URL navigation**: May not work correctly for all chat types
+
 ## 使用方法
 
 ### 登录指南

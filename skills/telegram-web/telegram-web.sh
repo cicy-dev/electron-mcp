@@ -197,8 +197,10 @@ open_telegram() {
     fi
 }
 
-# 获取聊天列表
-get_chats() {
+# 获取对话列表（dialogs）
+get_dialogs() {
+    local limit="${1:-20}"
+    
     # 获取窗口 ID
     if [ -f /tmp/telegram-web-win-id ]; then
         WIN_ID=$(cat /tmp/telegram-web-win-id)
@@ -208,10 +210,55 @@ get_chats() {
         exit 1
     fi
     
-    echo "📋 Chat list (top 20):"
+    echo "💬 Dialogs (limit: $limit):"
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Promise.all([getIndexedDBRows('tweb-account-1', 'dialogs', 20), getIndexedDBRows('tweb-account-1', 'users', 100), getIndexedDBRows('tweb-account-1', 'chats', 100)]).then(([dialogs, users, chats]) => JSON.stringify(dialogs.map(d => { const user = users.find(u => u.id === d.peerId); const chat = chats.find(c => c.id === Math.abs(d.peerId)); return { chatId: d.peerId, name: user ? (user.username || user.first_name) : (chat?.title || 'Unknown') }; }), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'dialogs', $limit).then(d => JSON.stringify(d.map(x => ({ peerId: x.peerId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+}
+
+# 获取聊天列表（从 dialogs 获取，包含名称）
+get_chats() {
+    local limit="${1:-10}"
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "📋 Chat list (top $limit):"
+    echo ""
+    
+    # 获取数据并用 Python 处理
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Promise.all([getIndexedDBRows('tweb-account-1', 'dialogs', $limit), getIndexedDBRows('tweb-account-1', 'users', 100), getIndexedDBRows('tweb-account-1', 'chats', 100)]).then(r => JSON.stringify(r))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | python3 -c "
+import json, sys
+from datetime import datetime
+data = json.load(sys.stdin)
+dialogs, users, chats = data[0], data[1], data[2]
+result = []
+for d in dialogs:
+    peer_id = d['peerId']
+    if peer_id > 0:
+        user = next((u for u in users if u['id'] == peer_id), None)
+        name = user.get('username') or user.get('first_name') or 'Unknown' if user else 'Unknown'
+    else:
+        chat = next((c for c in chats if c['id'] == abs(peer_id)), None)
+        name = chat.get('title') or 'Unknown' if chat else 'Unknown'
+    
+    # 获取最后更新时间
+    top_msg = d.get('topMessage', {})
+    date = top_msg.get('date', 0)
+    updated = datetime.fromtimestamp(date).strftime('%Y-%m-%d %H:%M:%S') if date else 'Unknown'
+    
+    # 获取未读数
+    unread = d.get('unread_count', 0)
+    
+    result.append({'chatId': peer_id, 'name': name, 'updated': updated, 'unread': unread})
+print(json.dumps(result, indent=2, ensure_ascii=False))
+"
 }
 
 # 获取当前账户信息
@@ -447,7 +494,7 @@ get_messages() {
     echo "📥 Getting messages from chat $chat_id (limit: $limit)..."
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', 500).then(msgs => { const chatMsgs = msgs.filter(m => m.peerId === $chat_id).slice(-$limit); return JSON.stringify(chatMsgs.map(m => ({ id: m.id, message: m.message, date: new Date(m.date * 1000).toISOString(), fromId: m.fromId })), null, 2); })\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', 500).then(msgs => JSON.stringify(msgs.filter(m => m.peerId === $chat_id).slice(-$limit).map(m => ({ id: m.id, message: m.message, date: new Date(m.date * 1000).toISOString(), fromId: m.fromId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 发送消息
@@ -472,17 +519,29 @@ send_message() {
     
     echo "💬 Sending message to '$chat'..."
     
-    # 点击搜索框
-    curl-rpc exec_js win_id="$WIN_ID" code="document.querySelector('input[type=\"search\"]')?.click()" > /dev/null
-    sleep 1
-    
-    # 输入聊天名称
-    curl-rpc cdp_type_text win_id="$WIN_ID" text="$chat" > /dev/null
+    # 回到主页
+    curl-rpc load_url win_id="$WIN_ID" url="https://web.telegram.org/k/" > /dev/null
     sleep 2
     
-    # 按回车选择
-    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    # 点击搜索框
+    curl-rpc cdp_click win_id="$WIN_ID" x=150 y=100 > /dev/null
     sleep 1
+    
+    # 逐字符输入（触发搜索）
+    for ((i=0; i<${#chat}; i++)); do
+        char="${chat:$i:1}"
+        curl-rpc cdp_type_text win_id="$WIN_ID" text="$char" > /dev/null
+        sleep 0.1
+    done
+    sleep 2
+    
+    # 按向下键选择第一个结果
+    curl-rpc cdp_press_key win_id="$WIN_ID" key="ArrowDown" > /dev/null
+    sleep 0.5
+    
+    # 按回车打开
+    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    sleep 3
     
     # 输入消息
     curl-rpc cdp_type_text win_id="$WIN_ID" text="$message" > /dev/null
@@ -552,7 +611,7 @@ main() {
             ;;
         chats)
             check_deps
-            get_chats
+            get_chats "$2"
             ;;
         account)
             check_deps
@@ -565,6 +624,10 @@ main() {
         db_chats)
             check_deps
             get_db_chats "$2" "$3"
+            ;;
+        dialogs)
+            check_deps
+            get_dialogs "$2"
             ;;
         db_messages)
             check_deps
