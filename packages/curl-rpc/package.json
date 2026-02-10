@@ -1,6 +1,6 @@
 {
   "name": "curl-rpc",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight MCP RPC CLI tool with YAML/JSON support",
   "bin": {
     "curl-rpc": "./bin/curl-rpc"

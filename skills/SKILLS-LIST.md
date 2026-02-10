@@ -17,6 +17,11 @@ bash skills/electron-mcp-service/service.sh restart  # 重启服务
 curl-rpc ping  # 应返回 "Pong"
 ```
 
+**安装 curl-rpc:**
+```bash
+npm install -g curl-rpc
+```
+
 ---
 
 ## 可用技能
@@ -35,14 +40,20 @@ curl-rpc ping
 ---
 
 ### curl-rpc
-**位置:** `./curl-rpc`  
+**类型:** npm 包  
 **功能:** MCP RPC 命令行工具
 
 ```bash
-curl-rpc "name: ping"
+# 安装
+npm install -g curl-rpc
+
+# 使用
+curl-rpc ping
+curl-rpc open_window url=https://google.com
+curl-rpc --help
 ```
 
-[文档](./curl-rpc/README.md)
+[文档](https://github.com/cicy-dev/electron-mcp/blob/main/packages/curl-rpc/README.md) | [npm](https://www.npmjs.com/package/curl-rpc)
 
 ---
 
