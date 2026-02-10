@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+const { spawn, execSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+
+const HOME = os.homedir();
+const PID_FILE = path.join(HOME, '.electron-mcp.pid');
+const LOG_FILE = path.join(HOME, 'logs', 'electron-mcp.log');
+const PACKAGE_ROOT = path.join(__dirname, '..');
+
+const command = process.argv[2];
+
+function getPid() {
+  try {
+    return fs.readFileSync(PID_FILE, 'utf8').trim();
+  } catch {
+    return null;
+  }
+}
+
+function isRunning(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function start() {
+  const pid = getPid();
+  if (pid && isRunning(pid)) {
+    console.log(`✅ electron-mcp is already running (PID: ${pid})`);
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+  
+  const child = spawn('electron', [PACKAGE_ROOT], {
+    detached: true,
+    stdio: ['ignore', fs.openSync(LOG_FILE, 'a'), fs.openSync(LOG_FILE, 'a')],
+    env: { ...process.env, PORT: process.env.PORT || '8101' }
+  });
+
+  child.unref();
+  fs.writeFileSync(PID_FILE, child.pid.toString());
+  
+  console.log(`✅ electron-mcp started (PID: ${child.pid})`);
+  console.log(`📝 Logs: ${LOG_FILE}`);
+}
+
+function stop() {
+  const pid = getPid();
+  if (!pid || !isRunning(pid)) {
+    console.log('❌ electron-mcp is not running');
+    fs.existsSync(PID_FILE) && fs.unlinkSync(PID_FILE);
+    return;
+  }
+
+  try {
+    process.kill(pid, 'SIGTERM');
+    fs.unlinkSync(PID_FILE);
+    console.log(`✅ electron-mcp stopped (PID: ${pid})`);
+  } catch (err) {
+    console.error(`❌ Failed to stop: ${err.message}`);
+  }
+}
+
+function status() {
+  const pid = getPid();
+  if (pid && isRunning(pid)) {
+    console.log(`✅ electron-mcp is running (PID: ${pid})`);
+    console.log(`📝 Logs: ${LOG_FILE}`);
+  } else {
+    console.log('❌ electron-mcp is not running');
+    fs.existsSync(PID_FILE) && fs.unlinkSync(PID_FILE);
+  }
+}
+
+function restart() {
+  stop();
+  setTimeout(start, 1000);
+}
+
+function logs() {
+  if (!fs.existsSync(LOG_FILE)) {
+    console.log('❌ No logs found');
+    return;
+  }
+  execSync(`tail -f ${LOG_FILE}`, { stdio: 'inherit' });
+}
+
+switch (command) {
+  case 'start': start(); break;
+  case 'stop': stop(); break;
+  case 'status': status(); break;
+  case 'restart': restart(); break;
+  case 'logs': logs(); break;
+  default:
+    console.log('Usage: electron-rpc <start|stop|status|restart|logs>');
+    process.exit(1);
+}

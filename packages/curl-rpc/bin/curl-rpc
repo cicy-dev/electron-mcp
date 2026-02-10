@@ -1,0 +1,161 @@
+#!/bin/bash
+# curl-rpc - 轻量级 MCP RPC 调用工具，默认 YAML 格式
+
+set -o pipefail
+
+# 默认配置
+ELECTRON_MCP_URL="${ELECTRON_MCP_URL:-http://localhost:8101}"
+
+# 检查参数
+if [ -z "$1" ]; then
+  echo "❌ Error: Missing arguments"
+  echo "Usage:"
+  echo "  curl-rpc <tool_name> [key=value ...]         # 简化调用"
+  echo "  curl-rpc <method> [--json|-j] <params>       # 完整调用"
+  echo ""
+  echo "Examples:"
+  echo "  curl-rpc ping"
+  echo "  curl-rpc open_window url=https://google.com"
+  echo "  curl-rpc 'tools/call' 'name: ping'"
+  exit 1
+fi
+
+USE_JSON=0
+
+# 检查是否是完整 method 格式 (xxx/yyy)
+if [[ "$1" =~ ^[a-z_]+/[a-z_]+ ]]; then
+  METHOD="$1"
+  shift
+  if [ "$1" = "--json" ] || [ "$1" = "-j" ]; then
+    USE_JSON=1
+    shift
+    PARAMS="$@"
+  else
+    PARAMS_INPUT="$@"
+  fi
+# 简化格式：工具名 + key=value 参数
+else
+  TOOL_NAME="$1"
+  shift
+  METHOD="tools/call"
+  
+  # 构建 YAML 参数
+  YAML_PARAMS="name: $TOOL_NAME"
+  
+  # 解析 key=value 参数
+  if [ $# -gt 0 ]; then
+    YAML_PARAMS="${YAML_PARAMS}\narguments:"
+    for arg in "$@"; do
+      if [[ "$arg" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)=(.+)$ ]]; then
+        key="${BASH_REMATCH[1]}"
+        value="${BASH_REMATCH[2]}"
+        YAML_PARAMS="${YAML_PARAMS}\n  ${key}: ${value}"
+      else
+        echo "❌ Error: Invalid argument format: $arg"
+        echo "Expected: key=value"
+        exit 1
+      fi
+    done
+  fi
+  
+  PARAMS_INPUT=$(echo -e "$YAML_PARAMS")
+fi
+
+# 检查 token 文件
+if [ ! -f ~/electron-mcp-token.txt ]; then
+  echo "❌ Error: ~/electron-mcp-token.txt not found"
+  echo "Please contact admin to set token"
+  exit 1
+fi
+
+TOKEN=$(cat ~/electron-mcp-token.txt)
+
+if [ -z "$TOKEN" ]; then
+  echo "❌ Error: Token is empty in ~/electron-mcp-token.txt"
+  echo "Please contact admin to set token"
+  exit 1
+fi
+
+# 默认 YAML，转换为 JSON
+if [ "$USE_JSON" = "0" ]; then
+  # 检查是否安装了 yq
+  if ! command -v yq &> /dev/null; then
+    echo "❌ Error: yq not found. Install with: pip install yq --break-system-packages"
+    exit 1
+  fi
+  
+  # 转换 YAML 到 JSON，捕获错误
+  PARAMS=$(echo "$PARAMS_INPUT" | yq -c . 2>&1)
+  if [ $? -ne 0 ]; then
+    echo "❌ Error: Invalid YAML format"
+    echo "$PARAMS"
+    exit 1
+  fi
+  ACCEPT_HEADER="application/yaml"
+else
+  # 验证 JSON 格式
+  if ! echo "$PARAMS" | jq empty 2>/dev/null; then
+    echo "❌ Error: Invalid JSON format"
+    echo "$PARAMS"
+    exit 1
+  fi
+  ACCEPT_HEADER="application/json"
+fi
+
+# 检查服务是否运行
+if ! curl -s --connect-timeout 2 $ELECTRON_MCP_URL/rpc/tools/list \
+  -H "Authorization: Bearer $TOKEN" > /dev/null 2>&1; then
+  echo "❌ Error: Cannot connect to MCP server at $ELECTRON_MCP_URL"
+  echo "Please check if the server is running: ./service.sh status"
+  exit 1
+fi
+
+# 执行请求
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST $ELECTRON_MCP_URL/rpc/$METHOD \
+  -H "Content-Type: application/json" \
+  -H "Accept: $ACCEPT_HEADER" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "$PARAMS" 2>&1)
+
+if [ $? -ne 0 ]; then
+  echo "❌ Error: curl command failed"
+  echo "$RESPONSE"
+  exit 1
+fi
+
+# 分离响应体和状态码
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+
+# 检查 HTTP 状态码
+if [ "$HTTP_CODE" != "200" ]; then
+  echo "❌ Error: HTTP $HTTP_CODE"
+  echo "$BODY"
+  exit 1
+fi
+
+# 检查是否有错误
+if echo "$BODY" | jq -e '.error' > /dev/null 2>&1; then
+  echo "❌ Error from server:"
+  echo "$BODY" | jq -r '.error'
+  exit 1
+fi
+
+# 输出结果
+echo "----------------"
+if [ "$USE_JSON" = "0" ]; then
+  echo "$BODY" | yq -r '.result.content[] | if .type == "text" then .text elif .type == "image" then "Image (\(.mimeType)): \(.data[:100])..." else . end' 2>&1
+  if [ $? -ne 0 ]; then
+    echo "❌ Error: Failed to parse response"
+    echo "$BODY"
+    exit 1
+  fi
+else
+  echo "$BODY" | jq -r '.result.content[] | if .type == "text" then .text elif .type == "image" then "Image (\(.mimeType)): \(.data[:100])..." else . end' 2>&1
+  if [ $? -ne 0 ]; then
+    echo "❌ Error: Failed to parse response"
+    echo "$BODY"
+    exit 1
+  fi
+fi
+echo "----------------"

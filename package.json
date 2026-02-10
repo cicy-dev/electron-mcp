@@ -1,8 +1,11 @@
 {
-  "name": "electron-mcp",
+  "name": "electron-rcp",
   "version": "1.0.0",
-  "description": "Electron MCP",
+  "description": "Electron-based MCP server for browser automation and system control",
   "main": "src/main.js",
+  "bin": {
+    "electron-rpc": "./bin/electron-rpc"
+  },
   "scripts": {
     "preinstall": "bash bin/preinstall.sh",
     "start": "electron .",

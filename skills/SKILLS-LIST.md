@@ -27,7 +27,7 @@ curl-rpc ping  # 应返回 "Pong"
 
 ```bash
 bash skills/electron-mcp-service/service.sh start
-curl-rpc "name: ping"
+curl-rpc ping
 ```
 
 [文档](./electron-mcp-service/README.md)
