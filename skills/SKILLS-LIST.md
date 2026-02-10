@@ -57,6 +57,28 @@ curl-rpc --help
 
 ---
 
+### telegram-web
+**位置:** `./telegram-web`  
+**功能:** Telegram Web 自动化
+
+```bash
+# 打开 Telegram Web
+bash skills/telegram-web/telegram-web.sh open
+
+# 获取登录二维码
+bash skills/telegram-web/telegram-web.sh qrcode
+
+# 获取聊天列表
+bash skills/telegram-web/telegram-web.sh chats
+
+# 发送消息
+bash skills/telegram-web/telegram-web.sh send "Saved Messages" "Hello"
+```
+
+[文档](./telegram-web/README.md)
+
+---
+
 ### download-douyin-video
 **位置:** `./download-douyin-video`  
 **功能:** 下载抖音视频
