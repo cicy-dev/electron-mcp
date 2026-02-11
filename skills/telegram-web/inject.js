@@ -1,65 +1,78 @@
 // Telegram Web IndexedDB Utils
 // Auto-injected on page load
 
-// Hook CacheStorage to capture API responses
-(() => {
-  const _caches = caches;
-  const _open = _caches.open.bind(_caches);
+(async () => {
+  const  name = "cachedAssets"
+  const cache = await caches.open(name);
+  const requests = await cache.keys();
 
-  _caches.open = async function(name) {
-    const cache = await _open(name);
-    const _match = cache.match.bind(cache);
+  console.log(`\n📦 缓存 ${name} 资源数:`, requests.length);
 
-    cache.match = async function(request, options) {
-      const response = await _match(request, options);
-      if (response) {
-        const url = request.url || request;
-        const isJS = url.includes('index-') && url.endsWith('.js');
-        if (isJS) {
-          const text = await response.clone().text();
-          console.log('📦 Cache JS:', url.substring(0, 80));
-          console.log('Content:', text.substring(0, 100));
+  for (const req of requests) {
+    const url = req.url;
+    // console.log(url)
+    // 只抓 JS（你可改条件）
+    const isHit =
+        url.includes("index-") &&
+        url.endsWith(".js");
+    if (!isHit) continue;
+
+    console.log("🔗 命中JS:", url);
+
+    const res = await cache.match(req);
+    if (!res) continue;
+
+    let text = await res.text();
+
+
+    if(!text.startsWith('window.__ver="1.0.3"')){
+      if(text.indexOf(";this.pushSingleManagerthis")===-1){
+          text = text.replace("this.pushSingleManager","window.init(this.mirrors);this.pushSingleManager");
+          text= `window.__ver="1.0.3";console.log("=========+>> __v:",__v);window.init = (m)=>{window.__m = m};` + text
+          const fileName =
+            url.substring(url.lastIndexOf("/") + 1) ||
+            "unknown.js";
+
+          await cache.put(
+            fileName,
+            new Response(text, {
+              headers: {
+                "Content-Type": "application/javascript",
+              },
+            })
+          );
+
+          console.log("💾 已备份:", fileName);
         }
-      }
-      return response;
-    };
-    return cache;
-  };
+    }
 
-  console.log('✅ CacheStorage hooked');
+
+    // if(text.indexOf(";this.pushSingleManagerthis")===-1){
+    // text = text.replace("this.pushSingleManager","window.init(this.mirrors);this.pushSingleManager");
+
+    // }
+
+
+
+
+    //  const fileName =
+    //         url.substring(url.lastIndexOf("/") + 1) ||
+    //         "unknown.js";
+
+    //   text = text.replace(",__v);",",window.__v);");
+    //   await cache.put(
+    //     fileName,
+    //     new Response(text, {
+    //       headers: {
+    //         "Content-Type": "application/javascript",
+    //       },
+    //     })
+    //   );
+
+  }
+
 })();
 
-// Hook JSON.parse to capture messages
-(() => {
-  const _p = JSON.parse;
-  const _s = JSON.stringify;
-
-  JSON.parse = function(t, r) {
-    try {
-      const x = _p(t, r);
-      if (t && typeof t === "string" && (t.includes("messages") || t.includes("peerId"))) {
-        console.log("📥 JSON.parse:", t.substring(0, 150));
-      }
-      return x;
-    } catch (e) {
-      return _p(t, r);
-    }
-  };
-
-  JSON.stringify = function(v, r, s) {
-    try {
-      const t = _s(v, r, s);
-      if (t && typeof t === "string" && (t.includes("messages") || t.includes("peerId"))) {
-        console.log("📤 JSON.stringify:", t.substring(0, 150));
-      }
-      return t;
-    } catch (e) {
-      return _s(v, r, s);
-    }
-  };
-
-  console.log("✅ JSON hook ready");
-})();
 
 window.getIndexedDBRows = async (dbName, storeName, limit = 100) => {
   const db = await new Promise((resolve, reject) => {
@@ -97,7 +110,7 @@ window.listIndexedDB = async () => {
       });
       result[dbInfo.name] = Array.from(db.objectStoreNames);
       db.close();
-    } catch(e) {
+    } catch (e) {
       result[dbInfo.name] = "error: " + e.message;
     }
   }
