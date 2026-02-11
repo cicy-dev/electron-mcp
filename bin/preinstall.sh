@@ -4,11 +4,9 @@ set -e
 
 echo "Installing electron globally..."
 
-# 检测是否有 sudo 命令（Linux/macOS）
-if command -v sudo &> /dev/null; then
+if [ "$(uname)" = "Linux" ]; then
   sudo npm install -g electron
 else
-  # Windows 或无 sudo 环境
   npm install -g electron
 fi
 
