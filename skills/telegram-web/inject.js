@@ -28,7 +28,7 @@
     if(!text.startsWith('window.__ver="1.0.3"')){
       if(text.indexOf(";this.pushSingleManagerthis")===-1){
           text = text.replace("this.pushSingleManager","window.init(this.mirrors);this.pushSingleManager");
-          text= `window.__ver="1.0.3";console.log("=========+>> __v:",__v);window.init = (m)=>{window.__m = m};` + text
+          text= `window.__ver="1.0.3";console.log("=========+>> __v:",window.__v);window.init = (m)=>{window.__m = m};` + text
           const fileName =
             url.substring(url.lastIndexOf("/") + 1) ||
             "unknown.js";
@@ -46,28 +46,22 @@
         }
     }
 
-
-    // if(text.indexOf(";this.pushSingleManagerthis")===-1){
-    // text = text.replace("this.pushSingleManager","window.init(this.mirrors);this.pushSingleManager");
-
-    // }
+     // text = text.replace(",__v);",",window.__v);");
 
 
+     // const fileName =
+     //        url.substring(url.lastIndexOf("/") + 1) ||
+     //        "unknown.js";
 
-
-    //  const fileName =
-    //         url.substring(url.lastIndexOf("/") + 1) ||
-    //         "unknown.js";
-
-    //   text = text.replace(",__v);",",window.__v);");
-    //   await cache.put(
-    //     fileName,
-    //     new Response(text, {
-    //       headers: {
-    //         "Content-Type": "application/javascript",
-    //       },
-    //     })
-    //   );
+     //  text = text.replace(",__v);",",window.__v);");
+     //  await cache.put(
+     //    fileName,
+     //    new Response(text, {
+     //      headers: {
+     //        "Content-Type": "application/javascript",
+     //      },
+     //    })
+     //  );
 
   }
 
