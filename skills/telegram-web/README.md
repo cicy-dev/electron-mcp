@@ -107,10 +107,17 @@ bash skills/telegram-web/telegram-web.sh create_bot "Bot Name" "bot_username"
 ```
 
 自动完成：
-1. 打开 BotFather
-2. 创建新 bot
-3. 获取 token
-4. 保存到 `~/telegram-bots/bot_username.token`
+1. 打开 BotFather（URL: `https://web.telegram.org/k/#@BotFather`）
+2. 发送 `/newbot` 命令
+3. 发送 bot 名称
+4. 发送 bot username（必须以 `_bot` 结尾）
+4. 获取 token
+5. 保存到 `~/data/tts-tg-bot/token.txt`
+
+**重要提示：**
+- 创建 bot 时，URL hash 会变为 `#@BotFather`
+- Bot username 必须以 `_bot` 结尾
+- Bot username 必须全局唯一
 
 示例：
 ```bash

@@ -56,6 +56,7 @@ Telegram Web 自动化工具
   $0 login                   # 登录指南
   $0 qrcode                  # 获取登录二维码（远程使用）
   $0 account                 # 获取当前账户信息
+  $0 open_chat <hash>        # 打开指定聊天（如 @BotFather）
   $0 chats                   # 获取聊天列表
   $0 chatid <chat>           # 获取聊天 ID
   $0 users [limit]           # 从 IndexedDB 获取用户列表
@@ -222,6 +223,40 @@ open_telegram() {
         echo "❌ Failed to open Telegram Web"
         exit 1
     fi
+}
+
+# 打开指定聊天（通过 hash）
+open_chat() {
+    local chat_hash="$1"
+    
+    if [ -z "$chat_hash" ]; then
+        echo "❌ Error: Missing chat hash"
+        echo "Usage: $0 open_chat <hash>"
+        echo "Example: $0 open_chat @BotFather"
+        exit 1
+    fi
+    
+    # 获取窗口 ID
+    if [ -f /tmp/telegram-web-win-id ]; then
+        WIN_ID=$(cat /tmp/telegram-web-win-id)
+    else
+        echo "❌ Error: Telegram Web not opened"
+        echo "Run: $0 open"
+        exit 1
+    fi
+    
+    echo "💬 Opening chat: $chat_hash..."
+    
+    # 构建完整 URL
+    local full_url="https://web.telegram.org/k/#${chat_hash}"
+    
+    curl-rpc load_url win_id="$WIN_ID" url="$full_url" > /dev/null
+    sleep 3
+    
+    # 验证 URL
+    current_url=$(curl-rpc exec_js win_id="$WIN_ID" code="window.location.href" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    
+    echo "✅ Opened: $current_url"
 }
 
 # 获取对话列表（dialogs）
@@ -419,15 +454,8 @@ create_bot() {
     
     echo "🤖 Creating bot: $bot_name (@$bot_username)..."
     
-    # 打开 BotFather
-    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_clickSearch()" > /dev/null 2>&1
-    sleep 1
-    
-    curl-rpc cdp_press_selectall win_id="$WIN_ID" > /dev/null 2>&1
-    curl-rpc cdp_type_text win_id="$WIN_ID" text="BotFather" > /dev/null
-    sleep 2
-    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
-    sleep 2
+    # 使用 open_chat 打开 BotFather
+    open_chat "@BotFather"
     
     # 发送 /newbot
     curl-rpc cdp_type_text win_id="$WIN_ID" text="/newbot" > /dev/null
@@ -451,7 +479,7 @@ create_bot() {
     curl-rpc cdp_scroll win_id="$WIN_ID" y=500 > /dev/null 2>&1
     sleep 2
     
-    token=$(curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_extractBotToken()" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    token=$(curl-rpc exec_js win_id="$WIN_ID" code='window._g.tg_extractBotToken().then(r => r ? r.token : null)' 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
     
     if [ "$token" = "null" ] || [ -z "$token" ]; then
         echo "❌ Failed to create bot. Username may be taken."
@@ -465,11 +493,11 @@ create_bot() {
     echo "Username: @$bot_username"
     echo "Token: $token"
     echo ""
-    echo "Token saved to: ~/telegram-bots/$bot_username.token"
+    echo "Token saved to: ~/data/tts-tg-bot/token.txt"
     
     # 保存 token
-    mkdir -p ~/telegram-bots
-    echo "$token" > ~/telegram-bots/$bot_username.token
+    mkdir -p ~/data/tts-tg-bot
+    echo "$token" > ~/data/tts-tg-bot/token.txt
 }
 
 # 从 IndexedDB 获取消息
@@ -612,6 +640,10 @@ main() {
         account)
             check_deps
             get_account
+            ;;
+        open_chat)
+            check_deps
+            open_chat "$2"
             ;;
         users)
             check_deps
