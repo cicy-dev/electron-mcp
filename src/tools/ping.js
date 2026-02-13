@@ -16,7 +16,7 @@ module.exports = (registerTool) => {
     const path = require("path");
     
     const newToken = crypto.randomBytes(32).toString("hex");
-    const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
+    const tokenPath = path.join(os.homedir(), "data/electron/token.txt");
     
     fs.writeFileSync(tokenPath, newToken);
     

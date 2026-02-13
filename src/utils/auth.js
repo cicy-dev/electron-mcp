@@ -11,7 +11,7 @@ class AuthManager {
   constructor() {
     this.authToken = this.getOrGenerateToken();
     console.log("[MCP] Auth token enabled");
-    console.log("[MCP] Token saved to ~/electron-mcp-token.txt");
+    console.log("[MCP] Token saved to ~/data/electron/token.txt");
   }
 
   /**
@@ -19,7 +19,7 @@ class AuthManager {
    * @returns {string} 认证令牌
    */
   getOrGenerateToken() {
-    const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
+    const tokenPath = path.join(os.homedir(), "data", "electron", "token.txt");
 
     try {
       // 检查是否已存在令牌
@@ -33,6 +33,7 @@ class AuthManager {
 
       // 生成新令牌
       const newToken = crypto.randomBytes(32).toString("hex");
+      fs.mkdirSync(path.dirname(tokenPath), { recursive: true });
       fs.writeFileSync(tokenPath, newToken);
       console.log("[MCP] Generated new token and saved to", tokenPath);
       return newToken;

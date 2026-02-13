@@ -118,7 +118,20 @@
 
 - `webpage_screenshot_and_to_clipboard` - 截图并复制到剪贴板
 - `webpage_snapshot` - 网页快照（截图+HTML）
-- `session_download_url` - 下载文件到指定路径
+- `session_download_url` - 下载文件到指定路径（支持超时设置）
+- **自动下载** - 所有浏览器下载自动保存到 `~/Downloads/electron/`，无弹窗
+
+### 下载管理
+
+- `get_downloads` - 获取所有下载记录
+- `get_download` - 获取指定下载的详细信息
+- `clear_downloads` - 清空下载记录
+
+**下载特性：**
+- ✅ 无弹窗下载 - 自动保存，不打断工作流
+- ✅ 双模式支持 - 工具指定路径 或 自动保存到默认目录
+- ✅ 实时进度跟踪 - 下载状态、进度、速度全记录
+- ✅ 全局记录管理 - 查询历史下载，支持批量清理
 
 ### 进程与端口工具
 
@@ -287,7 +300,7 @@ chmod +x ~/.local/bin/curl-rpc
 pip install yq --break-system-packages
 
 # 设置 token（首次使用）
-echo "your-token-here" > ~/electron-mcp-token.txt
+echo "your-token-here" > ~/data/electron/token.txt
 
 # 简化语法（推荐）
 curl-rpc ping

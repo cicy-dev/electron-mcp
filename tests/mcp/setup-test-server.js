@@ -73,7 +73,7 @@ async function startTestServer() {
 
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
-  const tokenPath = path.join(os.homedir(), "electron-mcp-token.txt");
+  const tokenPath = path.join(os.homedir(), "data/electron/token.txt");
   if (fs.existsSync(tokenPath)) {
     authToken = fs.readFileSync(tokenPath, "utf8").trim();
   }

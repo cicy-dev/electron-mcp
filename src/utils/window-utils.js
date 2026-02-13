@@ -4,6 +4,7 @@ const fs = require("fs");
 const os = require("os");
 const { config } = require("../config");
 const { initWindowMonitoring } = require("./window-monitor");
+const { loadWindowState, watchWindowState } = require("./window-state");
 
 app.name = "ElectronMCP";
 
@@ -14,6 +15,24 @@ function setupWindowHandlers(win) {
 
   // 初始化窗口监控（在 dom-ready 之前调用）
   initWindowMonitoring(win);
+
+  // 🔥 全局下载处理 - 自动保存到 ~/Downloads/electron/
+  const ses = win.webContents.session;
+  if (!ses._autoDownloadEnabled) {
+    ses._autoDownloadEnabled = true;
+    ses.on("will-download", (event, item, webContents) => {
+      // 如果没有设置 savePath，自动保存
+      setTimeout(() => {
+        if (!item.getSavePath()) {
+          const filename = item.getFilename();
+          const savePath = path.join(app.getPath("home"), "Downloads", "electron", filename);
+          fs.mkdirSync(path.dirname(savePath), { recursive: true });
+          item.setSavePath(savePath);
+          console.log(`[Auto Download] ${filename} -> ${savePath}`);
+        }
+      }, 0);
+    });
+  }
 
   win.webContents.on("dom-ready", async () => {
     try {
@@ -103,20 +122,37 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
     }
   }
 
-  // 如果没有指定 x, y，则根据现有窗口自动偏移
+  // 尝试加载保存的窗口状态（基于URL）
+  const savedState = url ? loadWindowState(accountIdx, url) : null;
+  
+  // 如果没有指定位置和大小，使用保存的状态或自动偏移
   let posX = x;
   let posY = y;
+  let winWidth = width;
+  let winHeight = height;
 
-  if (posX === undefined || posY === undefined) {
+  // 只有在没有明确指定位置时才使用保存的状态
+  if (x === undefined && y === undefined && savedState) {
+    posX = savedState.x;
+    posY = savedState.y;
+    console.log(`[WindowState] Restored position for ${url}: ${posX},${posY}`);
+  } else if (posX === undefined || posY === undefined) {
     const allWindows = BrowserWindow.getAllWindows();
     const offset = allWindows.length * 30; // 每个窗口偏移30px
     posX = posX !== undefined ? posX : offset;
     posY = posY !== undefined ? posY : offset;
   }
 
+  // 只有在没有明确指定大小时才使用保存的状态
+  if (width === 1200 && height === 800 && savedState) {
+    winWidth = savedState.width;
+    winHeight = savedState.height;
+    console.log(`[WindowState] Restored size for ${url}: ${winWidth}x${winHeight}`);
+  }
+
   const win = new BrowserWindow({
-    width,
-    height,
+    width: winWidth,
+    height: winHeight,
     x: posX,
     y: posY,
     webPreferences: {
@@ -127,6 +163,9 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
       ...webPreferences,
     },
   });
+
+  // 监听窗口状态变化并自动保存（基于URL）
+  watchWindowState(win, accountIdx);
 
   // ✅ 核心修正：获取当前窗口真正使用的那个 session
   const ses = win.webContents.session;

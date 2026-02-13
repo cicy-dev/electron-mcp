@@ -20,7 +20,7 @@ def main():
     server_url = "http://localhost:8101/rpc/inject_auto_run_when_dom_ready_js"
 
     # Load auth token from file
-    token_path = Path.home() / "electron-mcp-token.txt"
+    token_path = Path.home() / "data/electron/token.txt"
     try:
         auth_token = token_path.read_text().strip()
     except FileNotFoundError:

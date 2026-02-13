@@ -2,7 +2,7 @@
 
 # 快速测试所有 REST API 端点
 
-TOKEN=$(cat ~/electron-mcp-token.txt)
+TOKEN=$(cat ~/data/electron/token.txt)
 BASE_URL="http://localhost:8101"
 
 echo "=== Testing All REST API Endpoints ==="

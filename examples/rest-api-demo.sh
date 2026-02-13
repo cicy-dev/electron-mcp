@@ -2,7 +2,7 @@
 
 # REST API Examples for Electron MCP
 
-TOKEN=$(cat ~/electron-mcp-token.txt)
+TOKEN=$(cat ~/data/electron/token.txt)
 BASE_URL="http://localhost:8101"
 
 echo "=== Electron MCP REST API Examples ==="

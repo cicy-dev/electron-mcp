@@ -44,7 +44,7 @@ docker exec electron-rcp tail -f /home/electron/logs/electron-mcp.log
 ### Use curl-rpc from host
 ```bash
 # Set token on host
-echo "your-token-here" > ~/electron-mcp-token.txt
+echo "your-token-here" > ~/data/electron/token.txt
 
 # Test connection
 curl-rpc ping
@@ -59,7 +59,7 @@ curl-rpc webpage_snapshot win_id=1
 ### Extract screenshot to host
 ```bash
 curl -s http://localhost:8101/rpc/tools/call \
-  -H "Authorization: Bearer $(cat ~/electron-mcp-token.txt)" \
+  -H "Authorization: Bearer $(cat ~/data/electron/token.txt)" \
   -H "Content-Type: application/json" \
   -d '{"name":"webpage_snapshot","arguments":{"win_id":1}}' | \
   jq -r '.result.content[] | select(.type=="image") | .data' | \

@@ -13,81 +13,48 @@ show_help() {
   cat << 'EOF'
 curl-rpc - 轻量级 MCP RPC 调用工具
 
-用途：
-  快速调用 Electron MCP 服务器的工具，支持简化语法和 YAML/JSON 双格式
+用法: curl-rpc <tool_name> [key=value ...]
 
-安装：
-  npm install -g curl-rpc
+所有可用工具:
 
-使用方法：
-  curl-rpc <tool_name> [key=value ...]              # 简化语法（推荐）
-  curl-rpc <yaml_params>                            # YAML 格式
-  curl-rpc --json <json_params>                     # JSON 格式
-  curl-rpc --help | -h                              # 显示帮助
-  curl-rpc --version | -v                           # 显示版本
+窗口管理:
+  ping                          测试连接
+  open_window url=<url>         打开窗口
+  close_window win_id=<id>      关闭窗口
+  get_windows                   获取所有窗口
+  get_window_info win_id=<id>   获取窗口信息
 
-简化语法示例（最简洁）：
-  curl-rpc ping                                     # 无参数工具
-  curl-rpc open_window url=https://google.com      # 单参数
-  curl-rpc set_window_bounds win_id=1 x=100 y=100  # 多参数
-  curl-rpc cdp_type_text win_id=1 text="Hello"     # 带引号参数
+JavaScript:
+  exec_js win_id=<id> code=<js> 执行JavaScript
 
-YAML 格式示例（推荐，复杂参数）：
-  curl-rpc "
-  name: open_window
-  arguments:
-    url: https://google.com
-    reuseWindow: false
-  "
+下载:
+  session_download_url url=<url> save_path=<path>  下载文件
+  get_downloads                 获取下载列表
+  clear_downloads               清空下载记录
 
-JSON 格式示例（标准格式）：
-  curl-rpc --json '{"name":"ping","arguments":{}}'
+CDP:
+  cdp_click win_id=<id> x=<x> y=<y>     点击
+  cdp_type_text win_id=<id> text=<text> 输入文本
+  cdp_scroll win_id=<id> y=<y>          滚动
+  cdp_press_enter win_id=<id>           按Enter
 
-常用工具：
-  # 窗口管理
-  ping                                              # 测试连接
-  get_windows                                       # 获取所有窗口
-  open_window url=<url>                             # 打开窗口
-  close_window win_id=<id>                          # 关闭窗口
-  
-  # CDP 操作
-  cdp_click win_id=<id> x=<x> y=<y>                 # 点击
-  cdp_type_text win_id=<id> text=<text>             # 输入文本
-  cdp_scroll win_id=<id> y=<pixels>                 # 滚动
-  cdp_press_enter win_id=<id>                       # 按回车
-  
-  # JavaScript 执行
-  exec_js win_id=<id> code=<code>                   # 执行 JS
-  get_element_client_bound win_id=<id> selector=<sel>  # 获取元素位置
-  
-  # 剪贴板
-  clipboard_write_text text=<text>                  # 写入文本
-  clipboard_read_text                               # 读取文本
-  
-  # 执行命令
-  exec_shell command=<cmd>                          # 执行 Shell
-  exec_python code=<code>                           # 执行 Python
-  exec_npm command=<cmd>                            # 执行 npm
+剪贴板:
+  clipboard_write_text text=<text>  写入文本
+  clipboard_read_text               读取文本
 
-环境变量：
-  ELECTRON_MCP_URL              # MCP 服务器地址（默认：http://localhost:8101）
+账户:
+  get_account accountIdx=<idx>      获取账户
+  list_accounts                     列出账户
 
-配置文件：
-  ~/electron-mcp-token.txt      # 认证 Token（必需）
+系统:
+  exec_shell command=<cmd>          执行Shell
+  get_system_info                   系统信息
 
-格式对比：
-  简化语法：curl-rpc open_window url=https://google.com
-  YAML格式：curl-rpc "name: open_window\narguments:\n  url: https://google.com"
-  JSON格式：curl-rpc --json '{"name":"open_window","arguments":{"url":"https://google.com"}}'
-
-更多信息：
-  https://github.com/cicy-dev/electron-mcp
-  https://github.com/cicy-dev/electron-mcp/blob/main/skills/curl-rpc/README.md
-  https://github.com/cicy-dev/electron-mcp/blob/main/skills/curl-rpc/MANUAL.md
+详细文档: https://github.com/cicy-dev/electron-mcp/blob/main/packages/curl-rpc/README.md
+配置: ~/data/electron/token.txt
 EOF
+  exit 0
 }
-
-# 检查参数
 if [ -z "$1" ]; then
   echo "❌ Error: Missing arguments"
   echo ""
@@ -106,6 +73,7 @@ if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
   echo "curl-rpc version $VERSION"
   exit 0
 fi
+
 
 USE_JSON=0
 
@@ -149,16 +117,16 @@ else
 fi
 
 # 检查 token 文件
-if [ ! -f ~/electron-mcp-token.txt ]; then
-  echo "❌ Error: ~/electron-mcp-token.txt not found"
+if [ ! -f ~/data/electron/token.txt ]; then
+  echo "❌ Error: ~/data/electron/token.txt not found"
   echo "Please contact admin to set token"
   exit 1
 fi
 
-TOKEN=$(cat ~/electron-mcp-token.txt)
+TOKEN=$(cat ~/data/electron/token.txt)
 
 if [ -z "$TOKEN" ]; then
-  echo "❌ Error: Token is empty in ~/electron-mcp-token.txt"
+  echo "❌ Error: Token is empty in ~/data/electron/token.txt"
   echo "Please contact admin to set token"
   exit 1
 fi

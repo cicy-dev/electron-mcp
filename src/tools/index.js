@@ -11,4 +11,6 @@ module.exports = [
   require("./file-tools"),
   require("./system-tools"),
   require("./automation-tools"),
+  require("./account-tools"),
+  require("./download-tools"),
 ];

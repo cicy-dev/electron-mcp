@@ -82,7 +82,7 @@ pkill electron
 
 ### Authentication System
 
-- Auto-generates authentication tokens stored in `~/electron-mcp-token.txt`
+- Auto-generates authentication tokens stored in `~/data/electron/token.txt`
 - All HTTP requests require `Authorization: Bearer <token>` header
 - Token validation in `validateAuth()` method
 

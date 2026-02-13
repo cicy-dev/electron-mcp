@@ -7,7 +7,7 @@ const PORT = 18102;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // 读取 token
-const tokenPath = path.join(os.homedir(), 'electron-mcp-token.txt');
+const tokenPath = path.join(os.homedir(), 'data/electron/token.txt');
 const authToken = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf8').trim() : '';
 
 async function getAllTools() {

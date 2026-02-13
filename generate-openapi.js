@@ -7,7 +7,7 @@ const yaml = require('js-yaml');
 // 从服务器获取工具列表和 schemas
 async function getToolsWithSchemas() {
   const http = require('http');
-  const tokenPath = path.join(require('os').homedir(), 'electron-mcp-token.txt');
+  const tokenPath = path.join(require('os').homedir(), 'data/electron/token.txt');
   const token = fs.readFileSync(tokenPath, 'utf8').trim();
   
   // 获取工具列表

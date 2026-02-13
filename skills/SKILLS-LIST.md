@@ -40,14 +40,42 @@ curl-rpc ping
 ---
 
 ### curl-rpc
+**位置:** `../packages/curl-rpc`  
 **类型:** npm 包  
-**功能:** MCP RPC 命令行工具
+**功能:** 轻量级 MCP RPC 命令行工具
 
 ```bash
 # 安装
 npm install -g curl-rpc
 
-# 使用
+# 查看帮助
+curl-rpc --help
+
+# 测试连接
+curl-rpc ping
+
+# 打开窗口
+curl-rpc open_window url=https://google.com
+
+# 执行JavaScript
+curl-rpc exec_js win_id=1 code='document.title'
+
+# 下载文件
+curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/file.zip
+
+# 获取下载列表
+curl-rpc get_downloads
+```
+
+**特性:**
+- 🚀 简化语法：`curl-rpc tool_name key=value`
+- 📋 完整工具列表：`curl-rpc --help`
+- 🔒 自动Token认证：`~/data/electron/token.txt`
+- 📖 详细文档：包含所有工具的请求/响应示例
+
+[完整文档](../packages/curl-rpc/README.md)
+
+---
 curl-rpc ping
 curl-rpc open_window url=https://google.com
 curl-rpc --help
