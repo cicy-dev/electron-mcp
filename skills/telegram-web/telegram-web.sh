@@ -25,7 +25,7 @@ list_methods() {
     echo "=== _g Namespace (Our Tools) ==="
     
     # 从页面获取 _g 对象的所有方法
-    methods=$(curl-rpc exec_js win_id="$WIN_ID" code="Object.keys(window._g || {}).sort().join(',')" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d')
+    methods=$(curl-rpc exec_js win_id="$WIN_ID" code="Object.keys(window._g || {}).sort().join(',')" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d')
     
     if [ -n "$methods" ] && [ "$methods" != "undefined" ]; then
         echo "$methods" | tr ',' '\n' | while IFS= read -r method; do
@@ -166,7 +166,7 @@ get_qrcode() {
     sleep 3
     
     # 获取二维码元素位置
-    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_findQRCode().then(r => JSON.stringify(r))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d')
+    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_findQRCode().then(r => JSON.stringify(r))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d')
     
     if echo "$result" | grep -q '"found":false'; then
         echo "⚠️ QR code not found. You may already be logged in."
@@ -247,16 +247,19 @@ open_chat() {
     
     echo "💬 Opening chat: $chat_hash..."
     
-    # 构建完整 URL
-    local full_url="https://web.telegram.org/k/#${chat_hash}"
+    # 移除 @ 符号
+    local username="${chat_hash#@}"
     
-    curl-rpc load_url win_id="$WIN_ID" url="$full_url" > /dev/null
-    sleep 3
+    # 直接调用 Telegram Web 内部 API（最可靠）
+    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.appImManager.openUsername({userName:\"$username\"}).then(()=>\"OK\").catch(e=>\"ERR\")" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d' | tr -d '\n')
     
-    # 验证 URL
-    current_url=$(curl-rpc exec_js win_id="$WIN_ID" code="window.location.href" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    sleep 2
     
-    echo "✅ Opened: $current_url"
+    if [ "$result" = "OK" ]; then
+        echo "✅ Opened: @$username"
+    else
+        echo "❌ Failed to open @$username"
+    fi
 }
 
 # 获取对话列表（dialogs）
@@ -275,7 +278,7 @@ get_dialogs() {
     echo "💬 Dialogs (limit: $limit):"
     echo ""
     
-    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getDialogs($limit).then(d => JSON.stringify(d, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getDialogs($limit).then(d => JSON.stringify(d, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
 }
 
 # 获取聊天列表（从 dialogs 获取，包含名称）
@@ -294,7 +297,7 @@ get_chats() {
     echo "📋 Chat list (top $limit):"
     echo ""
     
-    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getChats($limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getChats($limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
 }
 
 # 获取当前账户信息
@@ -311,7 +314,7 @@ get_account() {
     echo "👤 Current Account Info:"
     echo ""
     
-    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getAccount().then(a => JSON.stringify(a, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getAccount().then(a => JSON.stringify(a, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
 }
 
 # 从 IndexedDB 获取用户列表
@@ -332,9 +335,9 @@ get_users() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'users', $limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'users', $limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     else
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getUsers($limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getUsers($limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     fi
 }
 
@@ -356,9 +359,9 @@ get_db_chats() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     else
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c.map(x => ({ id: x.id, title: x.title, type: x._ })), null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c.map(x => ({ id: x.id, title: x.title, type: x._ })), null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     fi
 }
 
@@ -380,9 +383,9 @@ get_db_messages() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'messages', $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.getIndexedDBRows('tweb-account-1', 'messages', $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     else
-        curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getMessages($limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getMessages($limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
     fi
 }
 
@@ -423,7 +426,7 @@ get_chat_id() {
     sleep 3
     
     # 从 URL 获取 chat ID
-    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.location.hash.replace('#','')" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.location.hash.replace('#','')" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d' | tr -d '\n')
     
     if [ -n "$result" ] && [ "$result" != "null" ]; then
         echo "✅ Chat ID: $result"
@@ -479,7 +482,7 @@ create_bot() {
     curl-rpc cdp_scroll win_id="$WIN_ID" y=500 > /dev/null 2>&1
     sleep 2
     
-    token=$(curl-rpc exec_js win_id="$WIN_ID" code='window._g.tg_extractBotToken().then(r => r ? r.token : null)' 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    token=$(curl-rpc exec_js win_id="$WIN_ID" code='window._g.tg_extractBotToken().then(r => r ? r.token : null)' 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d' | tr -d '\n')
     
     if [ "$token" = "null" ] || [ -z "$token" ]; then
         echo "❌ Failed to create bot. Username may be taken."
@@ -523,7 +526,7 @@ get_messages() {
     echo "📥 Getting messages from chat $chat_id (limit: $limit)..."
     echo ""
     
-    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getChatMessages($chat_id, $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window._g.tg_getChatMessages($chat_id, $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d'
 }
 
 # 发送消息
@@ -571,6 +574,10 @@ send_message() {
     # 按回车打开
     curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
     sleep 3
+    
+    # 聚焦输入框
+    curl-rpc exec_js win_id="$WIN_ID" code='document.querySelector(".input-message-input")?.focus()' > /dev/null 2>&1
+    sleep 0.5
     
     # 输入消息
     curl-rpc cdp_type_text win_id="$WIN_ID" text="$message" > /dev/null
