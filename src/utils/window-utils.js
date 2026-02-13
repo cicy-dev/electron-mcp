@@ -1,5 +1,7 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
 const { config } = require("../config");
 const { initWindowMonitoring } = require("./window-monitor");
 
@@ -15,6 +17,45 @@ function setupWindowHandlers(win) {
 
   win.webContents.on("dom-ready", async () => {
     try {
+      // 1. 获取当前页面的根域名
+      const currentURL = win.webContents.getURL();
+      const url = new URL(currentURL);
+      const hostname = url.hostname;
+      
+      // 提取根域名 (例如: web.telegram.org -> telegram.org)
+      const parts = hostname.split('.');
+      const domain = parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+      
+      // 2. 检查域名注入脚本
+      const injectDir = path.join(os.homedir(), "data", "electron", "extension", "inject");
+      const injectFile = path.join(injectDir, `${domain}.js`);
+      
+      // 3. 确保目录存在
+      if (!fs.existsSync(injectDir)) {
+        fs.mkdirSync(injectDir, { recursive: true });
+      }
+      
+      // 4. 如果文件不存在，创建默认脚本
+      if (!fs.existsSync(injectFile)) {
+        const defaultCode = `console.log("hi cicy");`;
+        fs.writeFileSync(injectFile, defaultCode, "utf-8");
+        console.log(`[DomReady] Created inject script for ${domain}`);
+      }
+      
+      // 5. 读取并注入域名脚本
+      const domainCode = fs.readFileSync(injectFile, "utf-8");
+      await win.webContents.executeJavaScript(`
+        (async () => {
+          try {
+            ${domainCode}
+          } catch(e) {
+            console.error('Domain inject error:', e);
+          }
+        })()
+      `);
+      console.log(`[DomReady] Injected script for ${domain}`);
+      
+      // 6. 执行原有的 localStorage 注入逻辑
       const encodedCode = await win.webContents.executeJavaScript(`
         localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
       `);

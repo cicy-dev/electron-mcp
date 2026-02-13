@@ -15,8 +15,10 @@
 ## 核心文件
 
 - `telegram-web.sh` - 主脚本
-- `inject.js` - 自动注入的 JS 工具函数
 - `README.md` - 本文档
+
+**注入文件（自动管理）：**
+- `~/data/electron/extension/inject/telegram.org.js` - 全局注入的工具函数（由 electron-mcp 自动注入）
 
 ## 依赖
 
@@ -161,11 +163,39 @@ bash skills/telegram-web/telegram-web.sh read "Chat Name"
 bash skills/telegram-web/telegram-web.sh --help
 ```
 
-## 自动注入的 JS 工具
+## 自动注入的全局工具
 
-`inject.js` 文件会在 Telegram Web 页面加载时自动注入，提供以下全局函数：
+所有工具函数通过 electron-mcp 的 dom-ready 机制自动注入到 `*.telegram.org` 页面。
 
-### window.getIndexedDBRows(dbName, storeName, limit)
+注入文件位置：`~/data/electron/extension/inject/telegram.org.js`
+
+### 自定义全局工具函数
+
+你可以编辑 `~/data/electron/extension/inject/telegram.org.js` 来添加自己的工具函数：
+
+```javascript
+// 添加你的自定义函数
+window.tg_myCustomFunction = async () => {
+  // 你的代码
+  return "result";
+};
+```
+
+**使用自定义函数：**
+
+```bash
+# 在脚本中调用
+curl-rpc exec_js win_id=1 code="window.tg_myCustomFunction()"
+
+# 或在 telegram-web.sh 中
+result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.tg_myCustomFunction()" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d')
+```
+
+**注意：** 修改后需要刷新页面才能生效。
+
+### 基础工具
+
+#### window.getIndexedDBRows(dbName, storeName, limit)
 
 从 IndexedDB 读取数据。
 
@@ -199,6 +229,67 @@ console.log(dbs);
 //   "tweb-account-2": [...],
 //   ...
 // }
+```
+
+### Telegram 专用工具
+
+所有 Telegram 专用函数都以 `tg_` 前缀命名：
+
+- `window.tg_getAccount()` - 获取账户信息
+- `window.tg_getDialogs(limit)` - 获取对话列表（peerId）
+- `window.tg_getChats(limit)` - 获取聊天列表（含名称、未读数）
+- `window.tg_getUsers(limit)` - 获取用户列表
+- `window.tg_getMessages(limit)` - 获取消息列表
+- `window.tg_getChatMessages(chatId, limit)` - 获取指定聊天的消息
+- `window.tg_findQRCode()` - 查找二维码元素
+- `window.tg_clickSearch()` - 点击搜索框
+- `window.tg_extractBotToken()` - 提取 Bot Token
+- `window.tg_readCurrentMessages(limit)` - 读取当前页面的消息
+
+**示例：**
+```javascript
+// 获取聊天列表
+const chats = await window.tg_getChats(10);
+console.log(chats); // [{chatId, name, updated, unread}, ...]
+
+// 获取用户列表
+const users = await window.tg_getUsers(5);
+console.log(users); // [{id, username, firstName, lastName}, ...]
+
+// 获取指定聊天的消息
+const messages = await window.tg_getChatMessages(-123456789, 20);
+console.log(messages); // [{id, message, date, fromId}, ...]
+```
+
+### 在脚本中使用全局工具
+
+**方法 1: 直接调用（简单）**
+```bash
+curl-rpc exec_js win_id=1 code="window.tg_getChats(5).then(c => c.map(x => x.name).join(','))"
+```
+
+**方法 2: 在 shell 脚本中使用**
+```bash
+#!/bin/bash
+WIN_ID=1
+
+# 获取聊天列表
+chats=$(curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getChats(10).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d')
+
+echo "$chats"
+```
+
+**方法 3: 创建自定义函数**
+```bash
+# 编辑 ~/data/electron/extension/inject/telegram.org.js
+window.tg_myFunction = async () => {
+  const chats = await window.tg_getChats(5);
+  const users = await window.tg_getUsers(5);
+  return { chats, users };
+};
+
+# 使用
+curl-rpc exec_js win_id=1 code="window.tg_myFunction().then(r => JSON.stringify(r))"
 ```
 
 ## IndexedDB 数据结构

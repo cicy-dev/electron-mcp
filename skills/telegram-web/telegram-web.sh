@@ -125,22 +125,9 @@ get_qrcode() {
     sleep 3
     
     # 获取二维码元素位置
-    result=$(curl-rpc exec_js win_id="$WIN_ID" code="
-        const canvas = document.querySelector('canvas.qr-canvas');
-        if (canvas) {
-            const rect = canvas.getBoundingClientRect();
-            JSON.stringify({
-                x: Math.round(rect.x),
-                y: Math.round(rect.y),
-                width: Math.round(rect.width),
-                height: Math.round(rect.height)
-            });
-        } else {
-            'NOT_FOUND';
-        }
-    " 2>&1)
+    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.tg_findQRCode().then(r => JSON.stringify(r))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d')
     
-    if echo "$result" | grep -q "NOT_FOUND"; then
+    if echo "$result" | grep -q '"found":false'; then
         echo "⚠️ QR code not found. You may already be logged in."
         echo "Or try: bash $0 open"
         exit 1
@@ -213,7 +200,7 @@ get_dialogs() {
     echo "💬 Dialogs (limit: $limit):"
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'dialogs', $limit).then(d => JSON.stringify(d.map(x => ({ peerId: x.peerId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getDialogs($limit).then(d => JSON.stringify(d, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 获取聊天列表（从 dialogs 获取，包含名称）
@@ -232,33 +219,7 @@ get_chats() {
     echo "📋 Chat list (top $limit):"
     echo ""
     
-    # 获取数据并用 Python 处理
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Promise.all([getIndexedDBRows('tweb-account-1', 'dialogs', $limit), getIndexedDBRows('tweb-account-1', 'users', 100), getIndexedDBRows('tweb-account-1', 'chats', 100)]).then(r => JSON.stringify(r))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | python3 -c "
-import json, sys
-from datetime import datetime
-data = json.load(sys.stdin)
-dialogs, users, chats = data[0], data[1], data[2]
-result = []
-for d in dialogs:
-    peer_id = d['peerId']
-    if peer_id > 0:
-        user = next((u for u in users if u['id'] == peer_id), None)
-        name = user.get('username') or user.get('first_name') or 'Unknown' if user else 'Unknown'
-    else:
-        chat = next((c for c in chats if c['id'] == abs(peer_id)), None)
-        name = chat.get('title') or 'Unknown' if chat else 'Unknown'
-    
-    # 获取最后更新时间
-    top_msg = d.get('topMessage', {})
-    date = top_msg.get('date', 0)
-    updated = datetime.fromtimestamp(date).strftime('%Y-%m-%d %H:%M:%S') if date else 'Unknown'
-    
-    # 获取未读数
-    unread = d.get('unread_count', 0)
-    
-    result.append({'chatId': peer_id, 'name': name, 'updated': updated, 'unread': unread})
-print(json.dumps(result, indent=2, ensure_ascii=False))
-"
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getChats($limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 获取当前账户信息
@@ -275,7 +236,7 @@ get_account() {
     echo "👤 Current Account Info:"
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"JSON.stringify({ userId: JSON.parse(localStorage.getItem('user_auth') || '{}').id, accountId: 'tweb-account-1', dcId: JSON.parse(localStorage.getItem('user_auth') || '{}').dcID, date: new Date(JSON.parse(localStorage.getItem('user_auth') || '{}').date * 1000).toISOString() }, null, 2)\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getAccount().then(a => JSON.stringify(a, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 从 IndexedDB 获取用户列表
@@ -296,9 +257,9 @@ get_users() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'users', $limit).then(users => JSON.stringify(users, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.getIndexedDBRows('tweb-account-1', 'users', $limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     else
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'users', $limit).then(users => JSON.stringify(users.map(u => ({ id: u.id, username: u.username, firstName: u.first_name, lastName: u.last_name })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getUsers($limit).then(u => JSON.stringify(u, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     fi
 }
 
@@ -320,9 +281,9 @@ get_db_chats() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'chats', $limit).then(chats => JSON.stringify(chats, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     else
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'chats', $limit).then(chats => JSON.stringify(chats.map(c => ({ id: c.id, title: c.title, type: c._ })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.getIndexedDBRows('tweb-account-1', 'chats', $limit).then(c => JSON.stringify(c.map(x => ({ id: x.id, title: x.title, type: x._ })), null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     fi
 }
 
@@ -344,9 +305,9 @@ get_db_messages() {
     echo ""
     
     if [ "$detail" = "--detail" ]; then
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', $limit).then(msgs => JSON.stringify(msgs, null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.getIndexedDBRows('tweb-account-1', 'messages', $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     else
-        curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', $limit).then(msgs => JSON.stringify(msgs.map(m => ({ id: m.id, message: m.message?.substring(0, 100), date: new Date(m.date * 1000).toISOString(), peerId: m.peerId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+        curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getMessages($limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
     fi
 }
 
@@ -372,7 +333,7 @@ get_chat_id() {
     echo "🔍 Getting chat ID for '$chat'..."
     
     # 点击搜索框
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"document.querySelector('input[type=\\\"search\\\"]')?.click()\"}}" > /dev/null 2>&1
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_clickSearch()" > /dev/null 2>&1
     sleep 1
     
     # 清空搜索框
@@ -387,7 +348,7 @@ get_chat_id() {
     sleep 3
     
     # 从 URL 获取 chat ID
-    result=$(curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"window.location.hash.replace('#','')\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.location.hash.replace('#','')" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
     
     if [ -n "$result" ] && [ "$result" != "null" ]; then
         echo "✅ Chat ID: $result"
@@ -419,7 +380,7 @@ create_bot() {
     echo "🤖 Creating bot: $bot_name (@$bot_username)..."
     
     # 打开 BotFather
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"document.querySelector('input[type=\\\"search\\\"]')?.click()\"}}" > /dev/null 2>&1
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_clickSearch()" > /dev/null 2>&1
     sleep 1
     
     curl-rpc cdp_press_selectall win_id="$WIN_ID" > /dev/null 2>&1
@@ -450,9 +411,9 @@ create_bot() {
     curl-rpc cdp_scroll win_id="$WIN_ID" y=500 > /dev/null 2>&1
     sleep 2
     
-    token=$(curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"Array.from(document.querySelectorAll('.bubble-content')).map(e=>e.innerText).join('\\\\n').match(/\\\\d{10}:[A-Za-z0-9_-]{35}/)?.[0] || 'not found'\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
+    token=$(curl-rpc exec_js win_id="$WIN_ID" code="window.tg_extractBotToken()" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d' | tr -d '\n')
     
-    if [ "$token" = "not found" ] || [ -z "$token" ]; then
+    if [ "$token" = "null" ] || [ -z "$token" ]; then
         echo "❌ Failed to create bot. Username may be taken."
         echo "Try another username."
         exit 1
@@ -494,7 +455,7 @@ get_messages() {
     echo "📥 Getting messages from chat $chat_id (limit: $limit)..."
     echo ""
     
-    curl-rpc tools/call --json "{\"name\":\"exec_js\",\"arguments\":{\"win_id\":$WIN_ID,\"code\":\"getIndexedDBRows('tweb-account-1', 'messages', 500).then(msgs => JSON.stringify(msgs.filter(m => m.peerId === $chat_id).slice(-$limit).map(m => ({ id: m.id, message: m.message, date: new Date(m.date * 1000).toISOString(), fromId: m.fromId })), null, 2))\"}}" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_getChatMessages($chat_id, $limit).then(m => JSON.stringify(m, null, 2))" 2>&1 | sed -n '/^---/,/^---/p' | sed '1d;$d'
 }
 
 # 发送消息
@@ -575,7 +536,7 @@ read_messages() {
     echo "📖 Reading messages from '$chat'..."
     
     # 点击搜索框
-    curl-rpc exec_js win_id="$WIN_ID" code="document.querySelector('input[type=\"search\"]')?.click()" > /dev/null
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_clickSearch()" > /dev/null
     sleep 1
     
     # 输入聊天名称
@@ -587,12 +548,7 @@ read_messages() {
     sleep 2
     
     # 读取最新消息
-    curl-rpc exec_js win_id="$WIN_ID" code="
-        Array.from(document.querySelectorAll('.message')).slice(-5).map(m => ({
-            text: m.querySelector('.text-content')?.textContent,
-            time: m.querySelector('.time')?.textContent
-        }))
-    "
+    curl-rpc exec_js win_id="$WIN_ID" code="window.tg_readCurrentMessages(5)"
 }
 
 # 主函数
