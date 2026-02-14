@@ -32,15 +32,31 @@ bash skills/electron-mcp-service/service.sh start
 
 ## ⚠️ Known Limitations
 
-1. **send command**: Search functionality is unreliable. Recommended workflow:
-   - Manually open the target chat in Telegram Web first
-   - Then use other automation features (read, send to current chat)
+1. **open_chat**: 三种方式打开聊天，推荐 `location.hash`
+   ```bash
+   # 推荐: location.hash（最简单稳定）
+   curl-rpc exec_js win_id=6 code='location.hash="#@BotFather"'
    
+   # 方式2: openUsername (内部API)
+   curl-rpc exec_js win_id=6 code='window.appImManager.openUsername({userName:"BotFather"})'
+   
+   # 方式3: setInnerPeer (需要 peerId)
+   curl-rpc exec_js win_id=6 code='window.appImManager.setInnerPeer({peerId:93372553})'
+   ```
+
 2. **messages store**: IndexedDB only caches loaded messages
    - Open the chat in Telegram Web to load messages
    - Then use `get_messages` to query from IndexedDB
    
-3. **chatId URL navigation**: May not work correctly for all chat types
+3. **get_messages** [推荐]: 从 IndexedDB 读取结构化 JSON，比 DOM 提取更稳定
+   ```bash
+   # BotFather chatId=93372553
+   bash skills/telegram-web/telegram-web.sh get_messages 93372553 5
+   ```
+
+4. **create_bot**: Token 通过 `get_messages` 从 BotFather 聊天记录提取
+   - Username 规范: `cicy_<name>_bot`
+   - 导航用 `location.hash`，不用 `open_chat`
 
 ## 使用方法
 
@@ -103,25 +119,22 @@ bash skills/telegram-web/telegram-web.sh qrcode
 ### 创建 Telegram Bot
 
 ```bash
-bash skills/telegram-web/telegram-web.sh create_bot "Bot Name" "bot_username"
+bash skills/telegram-web/telegram-web.sh create_bot "Bot Name" "cicy_name_bot"
 ```
 
 自动完成：
-1. 打开 BotFather（URL: `https://web.telegram.org/k/#@BotFather`）
-2. 发送 `/newbot` 命令
-3. 发送 bot 名称
-4. 发送 bot username（必须以 `_bot` 结尾）
-4. 获取 token
-5. 保存到 `~/data/tts-tg-bot/token.txt`
+1. 导航到 BotFather（`location.hash="#@BotFather"`）
+2. 发送 `/newbot` → bot 名称 → bot username
+3. 通过 `get_messages(93372553)` 从聊天记录提取 token
+4. 保存到 `~/data/tts-tg-bot/token.txt`
 
-**重要提示：**
-- 创建 bot 时，URL hash 会变为 `#@BotFather`
-- Bot username 必须以 `_bot` 结尾
-- Bot username 必须全局唯一
+**Username 规范：**
+- 必须以 `cicy_` 开头，`_bot` 结尾
+- 只允许小写字母、数字、下划线
+- 示例: `cicy_master_xk_bot`, `cicy_kiro_bot`
 
-示例：
 ```bash
-bash skills/telegram-web/telegram-web.sh create_bot "My TTS Bot" "my_tts_bot"
+bash skills/telegram-web/telegram-web.sh create_bot "Master XK" "cicy_master_xk_bot"
 ```
 
 ### 从 IndexedDB 获取数据

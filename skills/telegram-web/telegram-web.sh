@@ -230,36 +230,65 @@ open_chat() {
     local chat_hash="$1"
     
     if [ -z "$chat_hash" ]; then
-        echo "❌ Error: Missing chat hash"
-        echo "Usage: $0 open_chat <hash>"
-        echo "Example: $0 open_chat @BotFather"
+        echo "❌ Usage: $0 open_chat <@username>"
         exit 1
     fi
     
-    # 获取窗口 ID
     if [ -f /tmp/telegram-web-win-id ]; then
         WIN_ID=$(cat /tmp/telegram-web-win-id)
     else
-        echo "❌ Error: Telegram Web not opened"
-        echo "Run: $0 open"
+        echo "❌ Telegram Web not opened. Run: $0 open"
         exit 1
     fi
     
-    echo "💬 Opening chat: $chat_hash..."
-    
-    # 移除 @ 符号
     local username="${chat_hash#@}"
+    echo "💬 Opening chat: @$username..."
     
-    # 直接调用 Telegram Web 内部 API（最可靠）
-    result=$(curl-rpc exec_js win_id="$WIN_ID" code="window.appImManager.openUsername({userName:\"$username\"}).then(()=>\"OK\").catch(e=>\"ERR\")" 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d' | tr -d '\n')
+    # openUsername 加载聊天（比 location.hash 更可靠，会加载消息到 DOM+IndexedDB）
+    curl-rpc exec_js win_id="$WIN_ID" code="window.appImManager.openUsername({userName:\"$username\"})" > /dev/null 2>&1
+    sleep 3
     
-    sleep 2
-    
-    if [ "$result" = "OK" ]; then
-        echo "✅ Opened: @$username"
-    else
-        echo "❌ Failed to open @$username"
+    # 1. 检查 Start 按钮（bot 首次对话 / profile 面板）
+    #    .click() 不生效，必须 dispatchEvent 完整模拟 mousedown+mouseup+click
+    curl-rpc exec_js win_id="$WIN_ID" code='var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);var n;while(n=w.nextNode()){if(n.textContent.trim()==="START"){var p=n.parentElement;if(p.tagName==="SPAN")p=p.parentElement;if(p.getBoundingClientRect().width>0){window.__start_btn=p;break}}}' > /dev/null 2>&1
+    local found_start
+    found_start=$(curl-rpc exec_js win_id="$WIN_ID" code='window.__start_btn&&"FOUND"' 2>&1 | grep -v "^-" | tr -d ' ')
+    if [ "$found_start" = "FOUND" ]; then
+        echo "🔘 Start 按钮，点击..."
+        curl-rpc exec_js win_id="$WIN_ID" code='var b=window.__start_btn,o={bubbles:true,cancelable:true,view:window};b.dispatchEvent(new MouseEvent("mousedown",o));b.dispatchEvent(new MouseEvent("mouseup",o));b.dispatchEvent(new MouseEvent("click",o))' > /dev/null 2>&1
+        sleep 2
+        
+        # 2. 检查确认弹窗
+        local has_popup
+        has_popup=$(curl-rpc exec_js win_id="$WIN_ID" code='document.querySelector(".popup-button.btn.primary") && "YES"' 2>&1 | grep -v "^-" | tr -d ' ')
+        if [ "$has_popup" = "YES" ]; then
+            echo "🔘 确认弹窗，点击..."
+            curl-rpc exec_js win_id="$WIN_ID" code='var b=document.querySelector(".popup-button.btn.primary"),o={bubbles:true,cancelable:true,view:window};b.dispatchEvent(new MouseEvent("mousedown",o));b.dispatchEvent(new MouseEvent("mouseup",o));b.dispatchEvent(new MouseEvent("click",o))' > /dev/null 2>&1
+            sleep 2
+        fi
+        
+        # Start 点击后会关闭聊天，需要重新打开
+        echo "🔄 重新打开聊天..."
+        curl-rpc exec_js win_id="$WIN_ID" code="window.appImManager.openUsername({userName:\"$username\"})" > /dev/null 2>&1
+        sleep 3
     fi
+    
+    # 3. 检查输入框
+    local has_input
+    has_input=$(curl-rpc exec_js win_id="$WIN_ID" code='document.querySelector("[contenteditable]") && "YES"' 2>&1 | grep -v "^-" | tr -d ' ')
+    if [ "$has_input" != "YES" ]; then
+        echo "❌ 输入框未找到"
+        exit 1
+    fi
+    
+    # 4. 检查发送按钮
+    local has_send
+    has_send=$(curl-rpc exec_js win_id="$WIN_ID" code='document.querySelector(".btn-send") && "YES"' 2>&1 | grep -v "^-" | tr -d ' ')
+    if [ "$has_send" != "YES" ]; then
+        echo "⚠️ 发送按钮未找到"
+    fi
+    
+    echo "✅ Chat ready: @$username"
 }
 
 # 获取对话列表（dialogs）
@@ -456,33 +485,81 @@ create_bot() {
     fi
     
     echo "🤖 Creating bot: $bot_name (@$bot_username)..."
+    local BF="93372553_history"
     
-    # 使用 open_chat 打开 BotFather
-    open_chat "@BotFather"
+    # 辅助函数: 发消息并验证已发送 (通过 __m 检查新消息)
+    _bf_send() {
+        local text="$1" expect="$2"
+        local before after new_msg
+        before=$(curl-rpc exec_js win_id="$WIN_ID" code="Math.max(...Object.keys(window.__m.messages[\"$BF\"]).map(Number))" 2>&1 | grep -v "^-" | tr -d ' ')
+        
+        curl-rpc exec_js win_id="$WIN_ID" code='document.querySelector("[contenteditable]").focus()' > /dev/null 2>&1
+        sleep 0.5
+        curl-rpc cdp_type_text win_id="$WIN_ID" text="$text" > /dev/null
+        sleep 0.5
+        curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+        
+        # 等待 BotFather 回复（每 3 秒检查，最多 30 秒）
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            sleep 3
+            after=$(curl-rpc exec_js win_id="$WIN_ID" code="Math.max(...Object.keys(window.__m.messages[\"$BF\"]).map(Number))" 2>&1 | grep -v "^-" | tr -d ' ')
+            if [ "$after" != "$before" ]; then
+                new_msg=$(curl-rpc exec_js win_id="$WIN_ID" code="window.__m.messages[\"$BF\"][\"$after\"].message.substring(0,200)" 2>&1 | grep -v "^-")
+                echo "  📨 回复: ${new_msg:0:80}"
+                if [ -n "$expect" ] && ! echo "$new_msg" | grep -qi "$expect"; then
+                    echo "  ⚠️ 回复不匹配预期: $expect"
+                    return 1
+                fi
+                return 0
+            fi
+        done
+        echo "  ❌ 超时无回复"
+        return 1
+    }
     
-    # 发送 /newbot
-    curl-rpc cdp_type_text win_id="$WIN_ID" text="/newbot" > /dev/null
-    sleep 1
-    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
+    # 1. 打开 BotFather 并验证
+    curl-rpc exec_js win_id="$WIN_ID" code='window.appImManager.openUsername({userName:"BotFather"})' > /dev/null 2>&1
     sleep 3
+    local hash
+    hash=$(curl-rpc exec_js win_id="$WIN_ID" code='location.hash' 2>&1 | grep -v "^-")
+    if ! echo "$hash" | grep -qi "botfather"; then
+        echo "❌ 打开 BotFather 失败: $hash"
+        exit 1
+    fi
+    echo "✅ BotFather 已打开"
     
-    # 输入 bot 名称
-    curl-rpc cdp_type_text win_id="$WIN_ID" text="$bot_name" > /dev/null
+    # 2. /cancel 清理残留
+    echo "📤 /cancel"
+    _bf_send "/cancel" ""
     sleep 1
-    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
-    sleep 3
     
-    # 输入 bot username
-    curl-rpc cdp_type_text win_id="$WIN_ID" text="$bot_username" > /dev/null
-    sleep 1
-    curl-rpc cdp_press_enter win_id="$WIN_ID" > /dev/null
-    sleep 5
+    # 3. /newbot
+    echo "📤 /newbot"
+    if ! _bf_send "/newbot" "choose a name"; then
+        echo "❌ /newbot 失败"
+        exit 1
+    fi
     
-    # 提取 token
-    curl-rpc cdp_scroll win_id="$WIN_ID" y=500 > /dev/null 2>&1
-    sleep 2
+    # 4. 发送 bot 名称
+    echo "📤 名称: $bot_name"
+    if ! _bf_send "$bot_name" "username"; then
+        echo "❌ 发送名称失败"
+        exit 1
+    fi
     
-    token=$(curl-rpc exec_js win_id="$WIN_ID" code='window._g.tg_extractBotToken().then(r => r ? r.token : null)' 2>&1 | sed -n '/^-\+$/,/^-\+$/p' | sed '1d;$d' | tr -d '\n')
+    # 5. 发送 username
+    echo "📤 username: $bot_username"
+    if ! _bf_send "$bot_username" "token"; then
+        echo "❌ 发送 username 失败 (可能被占用或限流)"
+        exit 1
+    fi
+    
+    # 6. 从 __m 提取 token
+    echo "📥 提取 token..."
+    local latest_id latest_msg
+    latest_id=$(curl-rpc exec_js win_id="$WIN_ID" code="Math.max(...Object.keys(window.__m.messages[\"$BF\"]).map(Number))" 2>&1 | grep -v "^-" | tr -d ' ')
+    latest_msg=$(curl-rpc exec_js win_id="$WIN_ID" code="window.__m.messages[\"$BF\"][\"$latest_id\"].message" 2>&1)
+    token=$(echo "$latest_msg" | grep -oP '\d{8,10}:[A-Za-z0-9_-]{35}' | head -1)
     
     if [ "$token" = "null" ] || [ -z "$token" ]; then
         echo "❌ Failed to create bot. Username may be taken."
