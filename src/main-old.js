@@ -13,17 +13,14 @@ const { config } = require("./config");
 const { createWindow } = require("./utils/window-utils");
 const { AuthManager } = require("./utils/auth");
 
-
 if (process.platform === "linux") {
   // electronApp.disableHardwareAcceleration(); // 这一行比命令行开关更彻底
   process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
   electronApp.commandLine.appendSwitch("log-level", "3");
   // electronApp.commandLine.appendSwitch("no-sandbox");
 
-
   electronApp.commandLine.appendSwitch("disable-notifications");
   electronApp.commandLine.appendSwitch("disable-geolocation");
-
 
   electronApp.commandLine.appendSwitch("disable-dev-shm-usage");
   electronApp.commandLine.appendSwitch("disable-setuid-sandbox");
@@ -222,9 +219,10 @@ app.get("/ping", (req, res) => {
 
 // OpenAPI spec - 无需认证，动态生成，默认 YAML
 app.get("/openapi.json", (req, res) => {
-  const acceptHeader = req.get('Accept') || 'application/yaml';
-  const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
-  
+  const acceptHeader = req.get("Accept") || "application/yaml";
+  const useJson =
+    acceptHeader.includes("application/json") && !acceptHeader.includes("application/yaml");
+
   const tools = Array.from(toolHandlers.keys()).map((name) => ({
     name: name,
     description: toolDescriptions.get(name) || "",
@@ -241,7 +239,7 @@ app.get("/openapi.json", (req, res) => {
     },
     servers: [
       {
-        url: "https://gcp-docs.cicy.de5.net",
+        url: "https://g-electron.cicy.de5.net",
         description: "Remote server",
       },
     ],
@@ -346,8 +344,8 @@ app.get("/openapi.json", (req, res) => {
   if (useJson) {
     res.json(openapi);
   } else {
-    const yaml = require('js-yaml');
-    res.type('application/yaml').send(yaml.dump(openapi));
+    const yaml = require("js-yaml");
+    res.type("application/yaml").send(yaml.dump(openapi));
   }
 });
 
@@ -362,10 +360,10 @@ function authMiddleware(req, res, next) {
 }
 
 const mcpServer = new McpServer({
-    name: "electron-mcp",
-    version: "1.0.0",
-    description: "Electron MCP Server with browser automation tools",
-  });
+  name: "electron-mcp",
+  version: "1.0.0",
+  description: "Electron MCP Server with browser automation tools",
+});
 
 // 保存工具处理函数
 const toolHandlers = new Map();
@@ -432,7 +430,7 @@ app.get("/mcp", authMiddleware, async (req, res) => {
   try {
     const transport = createTransport(res);
     const mcpServer = createMcpServer(); // 为每个连接创建新的 server 实例
-    
+
     res.on("close", () => {
       delete transports[transport.sessionId];
     });
@@ -481,8 +479,8 @@ app.post("/messages", authMiddleware, async (req, res) => {
 app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
   try {
     const { method, params } = req.body;
-    const acceptHeader = req.get('Accept') || 'application/json';
-    const useYaml = acceptHeader.includes('application/yaml');
+    const acceptHeader = req.get("Accept") || "application/json";
+    const useYaml = acceptHeader.includes("application/yaml");
 
     if (method === "tools/call") {
       const { name, arguments: args } = params;
@@ -495,10 +493,10 @@ app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
           id: req.body.id || 1,
           error: { message: `Tool not found: ${name}` },
         };
-        
+
         if (useYaml) {
-          const yaml = require('js-yaml');
-          res.type('application/yaml').send(yaml.dump(errorResponse));
+          const yaml = require("js-yaml");
+          res.type("application/yaml").send(yaml.dump(errorResponse));
         } else {
           res.status(404).json(errorResponse);
         }
@@ -515,8 +513,8 @@ app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
       };
 
       if (useYaml) {
-        const yaml = require('js-yaml');
-        res.type('application/yaml').send(yaml.dump(response));
+        const yaml = require("js-yaml");
+        res.type("application/yaml").send(yaml.dump(response));
       } else {
         res.json(response);
       }
@@ -530,11 +528,11 @@ app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
       id: req.body.id || 1,
       error: { message: error.message },
     };
-    
-    const acceptHeader = req.get('Accept') || 'application/json';
-    if (acceptHeader.includes('application/yaml')) {
-      const yaml = require('js-yaml');
-      res.type('application/yaml').send(yaml.dump(errorResponse));
+
+    const acceptHeader = req.get("Accept") || "application/json";
+    if (acceptHeader.includes("application/yaml")) {
+      const yaml = require("js-yaml");
+      res.type("application/yaml").send(yaml.dump(errorResponse));
     } else {
       res.status(500).json(errorResponse);
     }
@@ -543,21 +541,22 @@ app.post("/rpc", authMiddleware, express.json(), async (req, res) => {
 
 // RPC tools list - 返回所有可用工具
 app.get("/rpc/tools", authMiddleware, (req, res) => {
-  const acceptHeader = req.get('Accept') || 'application/yaml';
-  const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
-  
+  const acceptHeader = req.get("Accept") || "application/yaml";
+  const useJson =
+    acceptHeader.includes("application/json") && !acceptHeader.includes("application/yaml");
+
   const tools = Array.from(toolHandlers.keys()).map((name) => ({
     name: name,
     description: toolDescriptions.get(name) || "",
   }));
-  
+
   const result = { tools };
-  
+
   if (useJson) {
     res.json(result);
   } else {
-    const yaml = require('js-yaml');
-    res.type('application/yaml').send(yaml.dump(result));
+    const yaml = require("js-yaml");
+    res.type("application/yaml").send(yaml.dump(result));
   }
 });
 
@@ -583,8 +582,9 @@ app.post("/rpc/:toolName", authMiddleware, express.json(), async (req, res) => {
   try {
     const { toolName } = req.params;
     const args = req.body;
-    const acceptHeader = req.get('Accept') || 'application/yaml';
-    const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
+    const acceptHeader = req.get("Accept") || "application/yaml";
+    const useJson =
+      acceptHeader.includes("application/json") && !acceptHeader.includes("application/yaml");
 
     const handler = toolHandlers.get(toolName);
     if (!handler) {
@@ -592,33 +592,37 @@ app.post("/rpc/:toolName", authMiddleware, express.json(), async (req, res) => {
         error: `Tool not found: ${toolName}`,
         available: Array.from(toolHandlers.keys()),
       };
-      
+
       if (useJson) {
         return res.status(404).json(errorResponse);
       } else {
-        const yaml = require('js-yaml');
-        return res.status(404).type('application/yaml').send(yaml.dump(errorResponse));
+        const yaml = require("js-yaml");
+        return res.status(404).type("application/yaml").send(yaml.dump(errorResponse));
       }
     }
 
     const result = await handler(args);
-    
+
     if (useJson) {
       res.json(result);
     } else {
-      const yaml = require('js-yaml');
-      res.type('application/yaml').send(yaml.dump(result));
+      const yaml = require("js-yaml");
+      res.type("application/yaml").send(yaml.dump(result));
     }
   } catch (error) {
     log.error(`[REST] Error calling ${req.params.toolName}:`, error);
-    const acceptHeader = req.get('Accept') || 'application/yaml';
-    const useJson = acceptHeader.includes('application/json') && !acceptHeader.includes('application/yaml');
-    
+    const acceptHeader = req.get("Accept") || "application/yaml";
+    const useJson =
+      acceptHeader.includes("application/json") && !acceptHeader.includes("application/yaml");
+
     if (useJson) {
       res.status(500).json({ error: error.message });
     } else {
-      const yaml = require('js-yaml');
-      res.status(500).type('application/yaml').send(yaml.dump({ error: error.message }));
+      const yaml = require("js-yaml");
+      res
+        .status(500)
+        .type("application/yaml")
+        .send(yaml.dump({ error: error.message }));
     }
   }
 });
@@ -778,7 +782,7 @@ electronApp.whenReady().then(() => {
     },
     servers: [
       {
-        url: "https://gcp-docs.cicy.de5.net",
+        url: "https://g-electron.cicy.de5.net",
         description: "Remote server",
       },
     ],

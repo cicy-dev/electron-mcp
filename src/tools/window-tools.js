@@ -225,6 +225,10 @@ function registerTools(registerTool) {
           height: height !== undefined ? height : currentBounds.height,
         };
 
+        // Unmaximize/unfullscreen first so setBounds takes effect
+        if (win.isMaximized()) win.unmaximize();
+        if (win.isFullScreen()) win.setFullScreen(false);
+
         win.setBounds(newBounds);
         const updatedBounds = win.getBounds();
 

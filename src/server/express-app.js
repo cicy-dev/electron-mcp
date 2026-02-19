@@ -1,15 +1,18 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const uiRoutes = require("./ui-routes");
 
 function createExpressApp(authMiddleware, tools = {}) {
   const app = express();
 
-  app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }));
+  app.use(
+    cors({
+      origin: "*",
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
 
   app.use(express.json());
   app.use(express.text());
@@ -27,11 +30,11 @@ function createExpressApp(authMiddleware, tools = {}) {
 
   // OpenAPI spec - dynamic generation, no auth
   app.get("/openapi.json", (req, res) => {
-    const acceptHeader = req.get('Accept') || 'application/json';
-    const useYaml = acceptHeader.includes('application/yaml');
-    
+    const acceptHeader = req.get("Accept") || "application/json";
+    const useYaml = acceptHeader.includes("application/yaml");
+
     const allTools = Object.entries(tools).flatMap(([tag, toolList]) =>
-      toolList.map(tool => ({ ...tool, tag }))
+      toolList.map((tool) => ({ ...tool, tag }))
     );
 
     const openapi = {
@@ -43,7 +46,7 @@ function createExpressApp(authMiddleware, tools = {}) {
       },
       servers: [
         {
-          url: "https://gcp-docs.cicy.de5.net",
+          url: "https://g-electron.cicy.de5.net",
           description: "Remote server",
         },
       ],
@@ -142,12 +145,20 @@ function createExpressApp(authMiddleware, tools = {}) {
     });
 
     if (useYaml) {
-      const yaml = require('js-yaml');
-      res.type('application/yaml').send(yaml.dump(openapi));
+      const yaml = require("js-yaml");
+      res.type("application/yaml").send(yaml.dump(openapi));
     } else {
       res.json(openapi);
     }
   });
+
+  // Serve UI page (no auth — page handles token itself)
+  app.get("/ui", (req, res) => {
+    res.sendFile(path.join(__dirname, "../ui.html"));
+  });
+
+  // Mount UI API routes
+  app.use("/ui", uiRoutes);
 
   return app;
 }

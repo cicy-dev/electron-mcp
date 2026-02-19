@@ -40,28 +40,36 @@ function setupWindowHandlers(win) {
       const currentURL = win.webContents.getURL();
       const url = new URL(currentURL);
       const hostname = url.hostname;
+      const port = url.port;
       
-      // 提取根域名 (例如: web.telegram.org -> telegram.org)
-      const parts = hostname.split('.');
-      const domain = parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+      // 2. 确定域名标识
+      let domain;
+      if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+        // localhost 或 IP 地址，使用 hostname:port 作为标识
+        domain = port ? `${hostname}_${port}` : hostname;
+      } else {
+        // 提取根域名 (例如: web.telegram.org -> telegram.org)
+        const parts = hostname.split('.');
+        domain = parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+      }
       
-      // 2. 检查域名注入脚本
+      // 3. 检查域名注入脚本
       const injectDir = path.join(os.homedir(), "data", "electron", "extension", "inject");
       const injectFile = path.join(injectDir, `${domain}.js`);
       
-      // 3. 确保目录存在
+      // 4. 确保目录存在
       if (!fs.existsSync(injectDir)) {
         fs.mkdirSync(injectDir, { recursive: true });
       }
       
-      // 4. 如果文件不存在，创建默认脚本
+      // 5. 如果文件不存在，创建默认脚本
       if (!fs.existsSync(injectFile)) {
-        const defaultCode = `console.log("hi cicy");`;
+        const defaultCode = `console.log("hi cicy - ${domain}");`;
         fs.writeFileSync(injectFile, defaultCode, "utf-8");
         console.log(`[DomReady] Created inject script for ${domain}`);
       }
       
-      // 5. 读取并注入域名脚本
+      // 6. 读取并注入域名脚本
       const domainCode = fs.readFileSync(injectFile, "utf-8");
       await win.webContents.executeJavaScript(`
         (async () => {
@@ -74,9 +82,13 @@ function setupWindowHandlers(win) {
       `);
       console.log(`[DomReady] Injected script for ${domain}`);
       
-      // 6. 执行原有的 localStorage 注入逻辑
+      // 5. 执行原有的 localStorage 注入逻辑
       const encodedCode = await win.webContents.executeJavaScript(`
-        localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
+        try{
+          localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
+        }catch(e){
+          ""
+        }
       `);
       if (encodedCode) {
         const code = Buffer.from(encodedCode, "base64").toString("utf-8");
@@ -171,14 +183,19 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
   const ses = win.webContents.session;
 
   ses.setPermissionRequestHandler((webContents, permission, callback) => {
-    console.log(`[Display :2] 已自动拒绝权限请求: ${permission}`);
-    // 针对 Google AI Studio 常见的 geolocation 或 notifications 自动返回 false
+    // 允许麦克风权限（语音输入需要）
+    if (permission === 'media') {
+      console.log(`[Permission] 已自动允许: ${permission}`);
+      return callback(true);
+    }
+    console.log(`[Permission] 已自动拒绝: ${permission}`);
     return callback(false);
   });
 
   // 💡 额外保险：处理权限检查（某些新版 Electron 需要这个）
   ses.setPermissionCheckHandler((webContents, permission, originatingOrigin) => {
-    return false; // 同样全部拒绝
+    if (permission === 'media') return true;
+    return false;
   });
 
   function getTitlePrefix() {
