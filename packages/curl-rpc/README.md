@@ -9,7 +9,10 @@
 - 📝 **YAML 优先** - 默认 YAML 格式，节省 30% token
 - 🔄 **JSON 支持** - 使用 `--json` 或 `-j` 标志切换到 JSON
 - ✅ **完善的错误处理** - 清晰的错误提示和建议
-- 🔒 **Token 认证** - 自动从 `~/data/electron/token.txt` 读取
+- 🔒 **Token 认证** - 自动从配置读取
+- 🌐 **多节点支持** - 支持多个服务器配置
+- 🔧 **初始化配置** - `curl-rpc init` 快速配置
+- 🐛 **调试模式** - `DEBUG=1` 输出详细信息
 
 ## 安装
 
@@ -47,6 +50,7 @@ curl-rpc list
 ```
 
 输出示例：
+
 ```
 📋 获取工具列表...
 
@@ -92,15 +96,19 @@ curl-rpc cdp_type_text win_id=1 text="Hello World"
 ### 窗口管理
 
 #### ping - 测试连接
+
 ```bash
 curl-rpc ping
 ```
+
 **响应:**
+
 ```
 Pong v:2 2026-02-13 16:00:00
 ```
 
 #### open_window - 打开窗口
+
 ```bash
 # 基本用法
 curl-rpc open_window url=https://google.com
@@ -108,7 +116,9 @@ curl-rpc open_window url=https://google.com
 # 指定大小和位置
 curl-rpc open_window url=https://google.com width=800 height=600 x=100 y=100
 ```
+
 **响应:**
+
 ```json
 {
   "message": "Opened window with ID: 1",
@@ -117,26 +127,32 @@ curl-rpc open_window url=https://google.com width=800 height=600 x=100 y=100
 ```
 
 #### get_windows - 获取所有窗口
+
 ```bash
 curl-rpc get_windows
 ```
+
 **响应:**
+
 ```json
 [
   {
     "id": 1,
     "title": "Google",
     "url": "https://google.com",
-    "bounds": {"x": 0, "y": 0, "width": 1200, "height": 800}
+    "bounds": { "x": 0, "y": 0, "width": 1200, "height": 800 }
   }
 ]
 ```
 
 #### close_window - 关闭窗口
+
 ```bash
 curl-rpc close_window win_id=1
 ```
+
 **响应:**
+
 ```
 Closed 1
 ```
@@ -144,6 +160,7 @@ Closed 1
 ### JavaScript执行
 
 #### exec_js - 执行JavaScript代码
+
 ```bash
 # 获取页面标题
 curl-rpc exec_js win_id=1 code='document.title'
@@ -154,16 +171,21 @@ curl-rpc exec_js win_id=1 code='document.querySelector("#btn").click()'
 # 获取页面内容
 curl-rpc exec_js win_id=1 code='document.body.innerHTML'
 ```
+
 **响应:**
+
 ```
 Google
 ```
 
 #### get_element_client_bound - 获取元素边界
+
 ```bash
 curl-rpc get_element_client_bound win_id=1 selector="#btn"
 ```
+
 **响应:**
+
 ```json
 {
   "x": 100,
@@ -174,10 +196,13 @@ curl-rpc get_element_client_bound win_id=1 selector="#btn"
 ```
 
 #### wait_for_selector - 等待元素出现
+
 ```bash
 curl-rpc wait_for_selector win_id=1 selector="#btn" timeout=5000
 ```
+
 **响应:**
+
 ```
 Element found
 ```
@@ -185,6 +210,7 @@ Element found
 ### 下载管理
 
 #### session_download_url - 下载文件
+
 ```bash
 # 基本下载
 curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/file.zip
@@ -192,7 +218,9 @@ curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/fil
 # 带超时设置
 curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/file.zip timeout=60000
 ```
+
 **响应:**
+
 ```json
 {
   "id": 1,
@@ -207,10 +235,13 @@ curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/fil
 ```
 
 #### get_downloads - 获取下载列表
+
 ```bash
 curl-rpc get_downloads
 ```
+
 **响应:**
+
 ```json
 [
   {
@@ -225,10 +256,13 @@ curl-rpc get_downloads
 ```
 
 #### get_download - 获取单个下载信息
+
 ```bash
 curl-rpc get_download id=1
 ```
+
 **响应:**
+
 ```json
 {
   "id": 1,
@@ -240,10 +274,13 @@ curl-rpc get_download id=1
 ```
 
 #### clear_downloads - 清空下载记录
+
 ```bash
 curl-rpc clear_downloads
 ```
+
 **响应:**
+
 ```
 All downloads cleared
 ```
@@ -373,15 +410,45 @@ curl-rpc clear_requests win_id=1
 
 ## Token 配置
 
+### 初始化配置
+
 ```bash
-# Token 位置
-~/data/electron/token.txt
+# 初始化配置文件
+curl-rpc init
+```
 
-# 查看 token
-cat ~/data/electron/token.txt
+配置文件位置：`~/data/electron/curl-rpc.json`
 
-# 设置 token（如果需要）
-echo "your-token-here" > ~/data/electron/token.txt
+配置格式：
+
+```json
+[
+  {
+    "api_token": "your-token-here",
+    "base_url": "http://localhost:8101"
+  },
+  {
+    "api_token": "your-token-2",
+    "base_url": "https://other-server.com"
+  }
+]
+```
+
+### 多节点切换
+
+```bash
+# 使用节点 0（默认）
+curl-rpc ping
+
+# 使用节点 1
+ELECTRON_MCP_NODE=1 curl-rpc ping
+```
+
+### 调试模式
+
+```bash
+# 输出完整请求/响应信息
+DEBUG=1 curl-rpc ping
 ```
 
 ## 环境变量
@@ -390,19 +457,31 @@ echo "your-token-here" > ~/data/electron/token.txt
 # 自定义服务器地址
 export ELECTRON_MCP_URL=http://localhost:8101
 
-# 使用
-curl-rpc ping
+# 选择节点 (0, 1, 2, ...)
+export ELECTRON_MCP_NODE=0
+
+# 调试模式
+export DEBUG=1
 ```
 
 ## 故障排除
 
-### Token 未找到
+### 配置文件未找到
 
 ```bash
-❌ Error: ~/data/electron/token.txt not found
+❌ Error: ~/data/electron/curl-rpc.json not found
 
-# 解决：检查 token 文件
-cat ~/data/electron/token.txt
+# 解决：初始化配置
+curl-rpc init
+```
+
+### Token 未设置
+
+```bash
+❌ Error: api_token is empty in ~/data/electron/curl-rpc.json
+
+# 解决：编辑配置文件添加 token
+vim ~/data/electron/curl-rpc.json
 ```
 
 ### 服务器未运行
@@ -435,11 +514,13 @@ curl-rpc list
 ### 1. 选择合适的格式
 
 **简单参数 → 简化语法**
+
 ```bash
 curl-rpc open_window url=https://google.com
 ```
 
 **复杂参数/多行代码 → YAML 格式**
+
 ```bash
 curl-rpc "
 name: exec_js
@@ -484,11 +565,13 @@ arguments:
 当 LLM 需要使用 `curl-rpc` 时：
 
 1. **首选简化语法**：适合 90% 的场景
+
    ```bash
    curl-rpc tool_name key1=value1 key2=value2
    ```
 
 2. **复杂参数用 YAML**：多行代码、嵌套结构
+
    ```bash
    curl-rpc "
    name: tool_name

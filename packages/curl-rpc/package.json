@@ -26,5 +26,8 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "preferGlobal": true
+  "preferGlobal": true,
+  "dependencies": {
+    "local": "^0.3.3"
+  }
 }
