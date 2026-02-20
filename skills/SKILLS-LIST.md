@@ -13,11 +13,13 @@ bash skills/electron-mcp-service/service.sh restart  # 重启服务
 ```
 
 **验证服务:**
+
 ```bash
 curl-rpc ping  # 应返回 "Pong"
 ```
 
 **安装 curl-rpc:**
+
 ```bash
 npm install -g curl-rpc
 ```
@@ -27,6 +29,7 @@ npm install -g curl-rpc
 ## 可用技能
 
 ### electron-mcp-service
+
 **位置:** `./electron-mcp-service`  
 **功能:** 浏览器自动化服务
 
@@ -40,53 +43,50 @@ curl-rpc ping
 ---
 
 ### curl-rpc
+
 **位置:** `../packages/curl-rpc`  
 **类型:** npm 包  
-**功能:** 轻量级 MCP RPC 命令行工具
+**功能:** 轻量级 Electron MCP RPC 命令行工具
 
 ```bash
 # 安装
 npm install -g curl-rpc
 
-# 查看帮助
-curl-rpc --help
-
 # 测试连接
 curl-rpc ping
 
-# 打开窗口
-curl-rpc open_window url=https://google.com
+# 查看Tools <<important>>
+curl-rpc tools
+curl-rpc tools <tool_name>
+curl-rpc tools --full    # 显示所有工具+参数
 
-# 执行JavaScript
-curl-rpc exec_js win_id=1 code='document.title'
+# 示例
+curl-rpc init                 # 初始化配置
+curl-rpc tools ping          # 查看 ping 工具详情
+curl-rpc open_window url=https://example.com
 
-# 下载文件
-curl-rpc session_download_url url=http://example.com/file.zip save_path=/tmp/file.zip
+环境变量:
+  ELECTRON_MCP_NODE=0         选择节点 (0, 1, 2, ...)
+  DEBUG=1                     输出调试信息 (curl -v)
 
-# 获取下载列表
-curl-rpc get_downloads
+配置: ~/data/electron/curl-rpc.json
 ```
 
 **特性:**
+
 - 🚀 简化语法：`curl-rpc tool_name key=value`
-- 📋 完整工具列表：`curl-rpc --help`
-- 🔒 自动Token认证：`~/data/electron/token.txt`
-- 📖 详细文档：包含所有工具的请求/响应示例
+- 📋 工具列表：`curl-rpc tools`
+- 📖 工具详情：`curl-rpc tools <tool_name>`
+- 🔒 自动Token认证
+- 📖 详细文档
 
 [完整文档](../packages/curl-rpc/README.md)
 
 ---
-curl-rpc ping
-curl-rpc open_window url=https://google.com
-curl-rpc --help
-```
-
-[文档](https://github.com/cicy-dev/electron-mcp/blob/main/packages/curl-rpc/README.md) | [npm](https://www.npmjs.com/package/curl-rpc)
-
----
 
 ### telegram-web
-**位置:** `./telegram-web`  
+
+**位置:** `./telegram-web`
 **功能:** Telegram Web 自动化
 
 ```bash
@@ -108,6 +108,7 @@ bash skills/telegram-web/telegram-web.sh send "Saved Messages" "Hello"
 ---
 
 ### download-douyin-video
+
 **位置:** `./download-douyin-video`  
 **功能:** 下载抖音视频
 
@@ -121,18 +122,23 @@ bash skills/download-douyin-video/download-douyin-video.sh <url>
 
 ---
 
-### aistudio
-**位置:** `./aistudio`  
-**功能:** AI Studio 自动化
+### chatgpt-web
 
-[文档](./aistudio/README.md)
-
----
-
-## 添加新技能
+**位置:** `./chatgpt-web`  
+**功能:** ChatGPT Web 自动化
 
 ```bash
-bash skills/create-skill.sh my-skill
+# 查看状态
+bash skills/chatgpt-web/chatgpt-web.sh status
+
+# 对话列表
+bash skills/chatgpt-web/chatgpt-web.sh conversations
+
+# 提问
+bash skills/chatgpt-web/chatgpt-web.sh ask 你好
+
+# 打开对话
+bash skills/chatgpt-web/chatgpt-web.sh open <conversation_id>
 ```
 
-参考模板：`./template-rpc/`
+[文档](./chatgpt-web/README.md)

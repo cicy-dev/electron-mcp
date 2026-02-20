@@ -11,12 +11,17 @@ ELECTRON_MCP_URL="${ELECTRON_MCP_URL:-http://localhost:8101}"
 # 显示帮助信息
 show_help() {
   cat << 'EOF'
-curl-rpc - 轻量级 MCP RPC 调用工具
+curl-rpc - 轻量级 Electron MCP RPC 命令行工具
+
+安装:
+  npm install -g curl-rpc
 
 用法: curl-rpc <command> [options]
 
 命令:
   init                          初始化配置
+  tools [--full]                列出所有工具
+  tools <tool_name>             查看工具详情
   <tool_name> [key=value ...]   调用工具
 
 选项:
@@ -26,53 +31,16 @@ curl-rpc - 轻量级 MCP RPC 调用工具
 
 环境变量:
   ELECTRON_MCP_NODE=0           选择节点 (0, 1, 2, ...)
-  DEBUG=1                       输出调试信息
-
-窗口管理:
-  ping                          测试连接
-  open_window url=<url>         打开窗口
-  close_window win_id=<id>      关闭窗口
-  get_windows                   获取所有窗口
-  get_window_info win_id=<id>   获取窗口信息
-
-JavaScript:
-  exec_js win_id=<id> code=<js> 执行JavaScript
-
-下载:
-  session_download_url url=<url> save_path=<path>  下载文件
-  get_downloads                 获取下载列表
-  clear_downloads               清空下载记录
-
-CDP:
-  cdp_click win_id=<id> x=<x> y=<y>     点击
-  cdp_type_text win_id=<id> text=<text> 输入文本
-  cdp_scroll win_id=<id> y=<y>          滚动
-  cdp_press_enter win_id=<id>           按Enter
-
-剪贴板:
-  clipboard_write_text text=<text>  写入文本
-  clipboard_read_text               读取文本
-
-账户:
-  get_account accountIdx=<idx>      获取账户
-  list_accounts                     列出账户
-
-系统:
-  exec_shell command=<cmd>          执行Shell
-  get_system_info                   系统信息
-
-环境变量:
-  ELECTRON_MCP_NODE=0              选择节点 (0, 1, 2, ...)
-  DEBUG=1                         输出调试信息 (curl -v)
+  DEBUG=1                       输出调试信息 (curl -v)
 
 配置: ~/data/electron/curl-rpc.json
 
 示例:
   curl-rpc init                 初始化配置
+  curl-rpc tools                列出所有工具
+  curl-rpc tools ping           查看 ping 工具详情
   curl-rpc ping                 测试连接
   curl-rpc open_window url=https://example.com
-  ELECTRON_MCP_NODE=1 curl-rpc ping
-  DEBUG=1 curl-rpc ping
 
 详细文档: https://github.com/cicy-dev/electron-mcp/blob/main/packages/curl-rpc/README.md
 EOF
@@ -151,6 +119,80 @@ EOF
   echo "🔑 Token: $MASKED_TOKEN"
   echo "🌐 URL: $BASE_URL"
   echo "📁 Config Path: $CONFIG_FILE"
+  exit 0
+fi
+
+# tools 命令 - 列出所有工具
+if [ "$1" = "tools" ]; then
+  CONFIG_FILE=~/data/electron/curl-rpc.json
+  TOKEN=$(jq -r '.[0].api_token' "$CONFIG_FILE")
+  BASE_URL=$(jq -r '.[0].base_url' "$CONFIG_FILE")
+  
+  RESPONSE=$(curl --noproxy "*" -s -X GET "$BASE_URL/rpc/tools" \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer $TOKEN")
+  
+  # 查看单个工具详情
+  if [ -n "$2" ] && [ "$2" != "--full" ]; then
+    TOOL_NAME="$2"
+    TOOL_INFO=$(echo "$RESPONSE" | jq -r ".tools[] | select(.name == \"$TOOL_NAME\")")
+    if [ "$TOOL_INFO" = "null" ] || [ -z "$TOOL_INFO" ]; then
+      echo "Error: Tool '$TOOL_NAME' not found"
+      exit 1
+    fi
+    
+    NAME=$(echo "$TOOL_INFO" | jq -r '.name')
+    DESC=$(echo "$TOOL_INFO" | jq -r '.description')
+    echo "$NAME - $DESC"
+    
+    PROPS=$(echo "$TOOL_INFO" | jq -r 'if .inputSchema.properties == null then "{}" else .inputSchema.properties end')
+    REQUIRED=$(echo "$TOOL_INFO" | jq -r 'if .inputSchema.required == null then "" else [.inputSchema.required[]] | join(",") end')
+    
+    if [ "$PROPS" != "{}" ] && [ -n "$PROPS" ]; then
+      for key in $(echo "$PROPS" | jq -r 'keys[]'); do
+        PTYPE=$(echo "$PROPS" | jq -r ".$key.type")
+        PDEFAULT=$(echo "$PROPS" | jq -r ".$key.default // \"\"")
+        PDESC=$(echo "$PROPS" | jq -r ".$key.description // \"\"")
+        if echo ",$REQUIRED," | grep -q ",$key,"; then
+          echo "  - $key* ($PTYPE): $PDESC"
+        else
+          echo "  - $key? ($PTYPE): $PDESC"
+        fi
+        if [ -n "$PDEFAULT" ]; then
+          echo "    default: $PDEFAULT"
+        fi
+      done
+    fi
+    exit 0
+  fi
+  
+  # 检查是否有 --full 参数
+  if [ "$2" = "--full" ]; then
+    # 完整格式: name - desc\n  - param: desc
+    for tool in $(echo "$RESPONSE" | jq -r '.tools[] | @base64'); do
+      NAME=$(echo "$tool" | base64 -d | jq -r '.name')
+      DESC=$(echo "$tool" | base64 -d | jq -r '.description')
+      echo "$NAME - $DESC"
+      
+      PROPS=$(echo "$tool" | base64 -d | jq -r 'if .inputSchema.properties == null then "{}" else .inputSchema.properties end')
+      REQUIRED=$(echo "$tool" | base64 -d | jq -r 'if .inputSchema.required == null then "" else [.inputSchema.required[]] | join(",") end')
+      
+      if [ "$PROPS" != "{}" ] && [ -n "$PROPS" ]; then
+        for key in $(echo "$PROPS" | jq -r 'keys[]'); do
+          PTYPE=$(echo "$PROPS" | jq -r ".$key.type")
+          PDESC=$(echo "$PROPS" | jq -r ".$key.description // \"\"")
+          if echo ",$REQUIRED," | grep -q ",$key,"; then
+            echo "  - $key* ($PTYPE): $PDESC"
+          else
+            echo "  - $key? ($PTYPE): $PDESC"
+          fi
+        done
+      fi
+    done
+  else
+    # 简短格式: name - description
+    echo "$RESPONSE" | jq -r '.tools[] | .name + " - " + .description'
+  fi
   exit 0
 fi
 
