@@ -102,8 +102,6 @@
 ### JS 执行与注入
 
 - `exec_js` - 执行 JavaScript 代码
-- `inject_auto_run_when_dom_ready_js` - 注入自动执行的 JS
-- `inject_auto_run_when_dom_ready_js_read` - 读取已注入的 JS
 - `get_element_client_bound` - 获取元素位置和尺寸
 - `show_float_div` - 显示可拖拽调试浮动框
 
@@ -116,7 +114,7 @@
 
 ### 截图与下载
 
-- `webpage_screenshot_and_to_clipboard` - 截图并复制到剪贴板
+- `webpage_screenshot_to_clipboard` - 截图并复制到剪贴板
 - `webpage_snapshot` - 网页快照（截图+HTML）
 - `session_download_url` - 下载文件到指定路径（支持超时设置）
 - **自动下载** - 所有浏览器下载自动保存到 `~/Downloads/electron/`，无弹窗

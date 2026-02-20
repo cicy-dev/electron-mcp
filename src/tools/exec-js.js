@@ -3,66 +3,6 @@ const { z } = require("zod");
 
 function registerTools(registerTool) {
   registerTool(
-    "inject_auto_run_when_dom_ready_js",
-    "注入JS代码到当前域名的localStorage，页面刷新/导航后自动执行。⚠️ 重要：仅对当前域名生效！跨域页面不会执行。典型用法：1)注入轻量工具函数 2)注入自动化脚本(自动登录、表单填充) 3)修改页面样式或行为 4)注入调试工具。示例：注入function hello(){console.log('hi')},刷新后调用hello()",
-    z.object({
-      win_id: z.number().optional().default(1).describe("窗口 ID"),
-      code: z.string().describe("JS 代码"),
-    }),
-    async ({ win_id, code }) => {
-      try {
-        const win = BrowserWindow.fromId(win_id);
-        if (!win) throw new Error(`未找到窗口 ${win_id}`);
-
-        const encodedCode = Buffer.from(code).toString("base64");
-        await win.webContents.executeJavaScript(`
-          localStorage.setItem('__inject_auto_run_when_dom_ready_js', '${encodedCode}');
-        `);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `注入成功！代码已保存到当前域名的localStorage，页面刷新或同域导航后将自动执行（跨域页面不会执行）`,
-            },
-          ],
-        };
-      } catch (error) {
-        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
-      }
-    },
-    { tag: "JavaScript" }
-  );
-
-  registerTool(
-    "inject_auto_run_when_dom_ready_js_read",
-    "读取已注入到当前域名localStorage的自动执行JS代码",
-    z.object({
-      win_id: z.number().optional().default(1).describe("窗口 ID"),
-    }),
-    async ({ win_id }) => {
-      try {
-        const win = BrowserWindow.fromId(win_id);
-        if (!win) throw new Error(`未找到窗口 ${win_id}`);
-
-        const encodedCode = await win.webContents.executeJavaScript(`
-          localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
-        `);
-
-        if (!encodedCode) {
-          return { content: [{ type: "text", text: "未找到已注入的代码" }] };
-        }
-
-        const code = Buffer.from(encodedCode, "base64").toString("utf-8");
-        return { content: [{ type: "text", text: `已注入的代码:\n${code}` }] };
-      } catch (error) {
-        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
-      }
-    },
-    { tag: "JavaScript" }
-  );
-
-  registerTool(
     "exec_js",
     "在窗口中执行JS代码并返回结果,支持async/await。示例: document.title 或 return document.title 或 await fetch('/api').then(r=>r.json())",
     z.object({
@@ -90,7 +30,16 @@ function registerTools(registerTool) {
         wrappedCode = `(async () => { ${wrappedCode} })()`;
 
         const result = await win.webContents.executeJavaScript(wrappedCode);
-        return { content: [{ type: "text", text: String(result) }] };
+        const text =
+          result !== null && typeof result === "object"
+            ? JSON.stringify(result, null, 2)
+            : String(result);
+        return {
+          content: [
+            { type: "text", text },
+            { type: "text", text: `>> exec_js ok` },
+          ],
+        };
       } catch (error) {
         return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
       }

@@ -25,8 +25,10 @@ async function startTestServer() {
     const sandboxPath = path.join(__dirname, "../../node_modules/electron/dist/chrome-sandbox");
     if (fs.existsSync(sandboxPath)) {
       try {
-        const { execSync } = require('child_process');
-        execSync(`sudo chown root:root "${sandboxPath}" && sudo chmod 4755 "${sandboxPath}"`, { stdio: 'ignore' });
+        const { execSync } = require("child_process");
+        execSync(`sudo chown root:root "${sandboxPath}" && sudo chmod 4755 "${sandboxPath}"`, {
+          stdio: "ignore",
+        });
       } catch (err) {
         // Ignore permission errors
       }

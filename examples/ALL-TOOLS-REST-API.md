@@ -128,10 +128,10 @@ curl -X POST http://localhost:8101/rpc/session_download_url \
   -d '{}'
 ```
 
-### webpage_screenshot_and_to_clipboard
+### webpage_screenshot_to_clipboard
 
 ```bash
-curl -X POST http://localhost:8101/rpc/webpage_screenshot_and_to_clipboard \
+curl -X POST http://localhost:8101/rpc/webpage_screenshot_to_clipboard \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat ~/data/electron/token.txt)" \
   -d '{}'
@@ -281,23 +281,6 @@ curl -X POST http://localhost:8101/rpc/cdp_sendcmd \
   -d '{}'
 ```
 
-### inject_auto_run_when_dom_ready_js
-
-```bash
-curl -X POST http://localhost:8101/rpc/inject_auto_run_when_dom_ready_js \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ~/data/electron/token.txt)" \
-  -d '{}'
-```
-
-### inject_auto_run_when_dom_ready_js_read
-
-```bash
-curl -X POST http://localhost:8101/rpc/inject_auto_run_when_dom_ready_js_read \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(cat ~/data/electron/token.txt)" \
-  -d '{}'
-```
 
 ### exec_js
 

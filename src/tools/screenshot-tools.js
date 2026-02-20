@@ -4,7 +4,7 @@ const { captureSnapshot } = require("../snapshot-utils");
 
 function registerTools(registerTool) {
   registerTool(
-    "webpage_screenshot_and_to_clipboard",
+    "webpage_screenshot_to_clipboard",
     "截图并复制到剪贴板",
     z.object({ win_id: z.number().optional().describe("窗口 ID") }),
     async ({ win_id }) => {

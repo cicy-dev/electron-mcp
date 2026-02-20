@@ -13,7 +13,12 @@ function registerTools(registerTool) {
       try {
         clipboard.writeText(text);
         return {
-          content: [{ type: "text", text: `Text written to clipboard: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}` }],
+          content: [
+            {
+              type: "text",
+              text: `Text written to clipboard: ${text.substring(0, 50)}${text.length > 50 ? "..." : ""}`,
+            },
+          ],
         };
       } catch (error) {
         return {
@@ -58,7 +63,9 @@ function registerTools(registerTool) {
         clipboard.writeImage(image);
         const size = image.getSize();
         return {
-          content: [{ type: "text", text: `Image written to clipboard: ${size.width}x${size.height}` }],
+          content: [
+            { type: "text", text: `Image written to clipboard: ${size.width}x${size.height}` },
+          ],
         };
       } catch (error) {
         return {
@@ -109,20 +116,28 @@ function registerTools(registerTool) {
         const results = [];
 
         // Test 1: sendInputEvent
-        clipboard.writeText('TEST_SENDINPUT');
+        clipboard.writeText("TEST_SENDINPUT");
         win.webContents.sendInputEvent({ type: "keyDown", keyCode: "V", modifiers: ["control"] });
         win.webContents.sendInputEvent({ type: "char", keyCode: "V", modifiers: ["control"] });
         win.webContents.sendInputEvent({ type: "keyUp", keyCode: "V", modifiers: ["control"] });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Test 2: CDP
-        clipboard.writeText('TEST_CDP');
-        await sendCDP(win.webContents, "Input.dispatchKeyEvent", { type: "keyDown", key: "v", modifiers: 2 });
-        await sendCDP(win.webContents, "Input.dispatchKeyEvent", { type: "keyUp", key: "v", modifiers: 2 });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        clipboard.writeText("TEST_CDP");
+        await sendCDP(win.webContents, "Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key: "v",
+          modifiers: 2,
+        });
+        await sendCDP(win.webContents, "Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key: "v",
+          modifiers: 2,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Test 3: JS
-        clipboard.writeText('TEST_JS');
+        clipboard.writeText("TEST_JS");
         await win.webContents.executeJavaScript(`
           const text = 'TEST_JS';
           const dt = new DataTransfer();
@@ -134,19 +149,24 @@ function registerTools(registerTool) {
           });
           document.dispatchEvent(event);
         `);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Get results
-        const testResults = await win.webContents.executeJavaScript('window.__pasteTestResults');
+        const testResults = await win.webContents.executeJavaScript("window.__pasteTestResults");
 
         const report = [
           `Paste events detected: ${testResults.count}`,
-          `✅ sendInputEvent: ${testResults.sendInputEvent ? 'WORKS' : 'FAILED'}`,
-          `${testResults.cdp ? '✅' : '❌'} CDP: ${testResults.cdp ? 'WORKS' : 'FAILED'}`,
-          `✅ JavaScript: ${testResults.js ? 'WORKS' : 'FAILED'}`,
-          '',
-          'Recommended method: ' + (testResults.sendInputEvent ? 'sendInputEvent' : testResults.js ? 'js' : 'none working')
-        ].join('\n');
+          `✅ sendInputEvent: ${testResults.sendInputEvent ? "WORKS" : "FAILED"}`,
+          `${testResults.cdp ? "✅" : "❌"} CDP: ${testResults.cdp ? "WORKS" : "FAILED"}`,
+          `✅ JavaScript: ${testResults.js ? "WORKS" : "FAILED"}`,
+          "",
+          "Recommended method: " +
+            (testResults.sendInputEvent
+              ? "sendInputEvent"
+              : testResults.js
+                ? "js"
+                : "none working"),
+        ].join("\n");
 
         return { content: [{ type: "text", text: report }] };
       } catch (error) {

@@ -1,6 +1,6 @@
-const { exec } = require('child_process');
-const net = require('net');
-const { promisify } = require('util');
+const { exec } = require("child_process");
+const net = require("net");
+const { promisify } = require("util");
 
 const execAsync = promisify(exec);
 
@@ -11,9 +11,9 @@ const execAsync = promisify(exec);
  * @param {number} [timeout=1000] - 超时时间（毫秒）
  * @returns {Promise<boolean>} true=端口开放/被占用, false=端口关闭/可用
  */
-async function isPortOpen(port, host = 'localhost', timeout = 1000) {
+async function isPortOpen(port, host = "localhost", timeout = 1000) {
   // 验证端口范围
-  if (typeof port !== 'number' || port < 0 || port >= 65536) {
+  if (typeof port !== "number" || port < 0 || port >= 65536) {
     return false;
   }
 
@@ -46,9 +46,9 @@ async function isPortOpen(port, host = 'localhost', timeout = 1000) {
     };
 
     socket.setTimeout(timeout);
-    socket.once('error', onError);
-    socket.once('timeout', onTimeout);
-    socket.once('connect', onConnect);
+    socket.once("error", onError);
+    socket.once("timeout", onTimeout);
+    socket.once("connect", onConnect);
 
     socket.connect(port, host);
   });
@@ -63,7 +63,7 @@ async function killPort(port) {
   const platform = process.platform;
 
   try {
-    if (platform === 'win32') {
+    if (platform === "win32") {
       return await killPortWindows(port);
     } else {
       return await killPortUnix(port);
@@ -84,7 +84,7 @@ async function killPortWindows(port) {
   try {
     // 查找占用端口的进程
     const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
-    
+
     if (!stdout.trim()) {
       return {
         success: false,
@@ -93,13 +93,13 @@ async function killPortWindows(port) {
     }
 
     // 提取 PID（最后一列）
-    const lines = stdout.trim().split('\n');
+    const lines = stdout.trim().split("\n");
     const pids = new Set();
-    
+
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
-      if (pid && pid !== '0') {
+      if (pid && pid !== "0") {
         pids.add(pid);
       }
     }
@@ -141,7 +141,7 @@ async function killPortUnix(port) {
   try {
     // 使用 fuser 查找占用端口的进程（不需要 root 权限）
     const { stdout } = await execAsync(`fuser ${port}/tcp 2>/dev/null || true`);
-    
+
     if (!stdout.trim()) {
       return {
         success: false,
@@ -150,10 +150,12 @@ async function killPortUnix(port) {
     }
 
     // 提取 PID
-    const pids = stdout.trim().split(/\s+/)
+    const pids = stdout
+      .trim()
+      .split(/\s+/)
       .filter(Boolean)
-      .map(pid => parseInt(pid));
-    
+      .map((pid) => parseInt(pid));
+
     if (pids.length === 0) {
       return {
         success: false,
@@ -162,7 +164,7 @@ async function killPortUnix(port) {
     }
 
     // 杀死进程
-    await execAsync(`kill -9 ${pids.join(' ')}`);
+    await execAsync(`kill -9 ${pids.join(" ")}`);
 
     return {
       success: true,

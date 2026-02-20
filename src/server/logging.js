@@ -7,10 +7,10 @@ function setupLogging(config) {
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
   }
-  
+
   config.logsDir = logsDir;
   config.logFilePath = path.join(logsDir, `electron-mcp-${config.port}.log`);
-  
+
   log.transports.file.resolvePathFn = () => config.logFilePath;
   log.transports.file.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}";
   log.transports.console.format = "[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}";

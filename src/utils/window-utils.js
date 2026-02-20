@@ -41,36 +41,40 @@ function setupWindowHandlers(win) {
       const url = new URL(currentURL);
       const hostname = url.hostname;
       const port = url.port;
-      
+
       // 2. 确定域名标识
       let domain;
-      if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+      if (hostname === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
         // localhost 或 IP 地址，使用 hostname:port 作为标识
         domain = port ? `${hostname}_${port}` : hostname;
       } else {
         // 提取根域名 (例如: web.telegram.org -> telegram.org)
-        const parts = hostname.split('.');
-        domain = parts.length > 2 ? parts.slice(-2).join('.') : hostname;
+        const parts = hostname.split(".");
+        domain = parts.length > 2 ? parts.slice(-2).join(".") : hostname;
       }
-      
+
       // 3. 检查域名注入脚本
       const injectDir = path.join(os.homedir(), "data", "electron", "extension", "inject");
       const injectFile = path.join(injectDir, `${domain}.js`);
-      
+
       // 4. 确保目录存在
       if (!fs.existsSync(injectDir)) {
         fs.mkdirSync(injectDir, { recursive: true });
       }
-      
-      // 5. 如果文件不存在，创建默认脚本
+
+      let domainCode = "";
+
+      // 5. 如果文件不存在，使用默认脚本并创建文件
       if (!fs.existsSync(injectFile)) {
-        const defaultCode = `console.log("hi cicy - ${domain}");`;
-        fs.writeFileSync(injectFile, defaultCode, "utf-8");
+        const defaultInjectPath = path.join(__dirname, "..", "extension", "inject.js");
+        domainCode = fs.readFileSync(defaultInjectPath, "utf-8");
+        fs.writeFileSync(injectFile, domainCode, "utf-8");
         console.log(`[DomReady] Created inject script for ${domain}`);
+      } else {
+        domainCode = fs.readFileSync(injectFile, "utf-8");
       }
-      
-      // 6. 读取并注入域名脚本
-      const domainCode = fs.readFileSync(injectFile, "utf-8");
+
+      // 6. 注入脚本
       await win.webContents.executeJavaScript(`
         (async () => {
           try {
@@ -81,30 +85,7 @@ function setupWindowHandlers(win) {
         })()
       `);
       console.log(`[DomReady] Injected script for ${domain}`);
-      
-      // 5. 执行原有的 localStorage 注入逻辑
-      const encodedCode = await win.webContents.executeJavaScript(`
-        try{
-          localStorage.getItem('__inject_auto_run_when_dom_ready_js') || ''
-        }catch(e){
-          ""
-        }
-      `);
-      if (encodedCode) {
-        const code = Buffer.from(encodedCode, "base64").toString("utf-8");
-        await win.webContents.executeJavaScript(`
-          (async () => {
-            try {
-              ${code}
-            } catch(e) {
-              console.error('Injected code error:', e);
-            }
-          })()
-        `);
-      }
-    } catch (e) {
-      console.error("Auto-inject error:", e);
-    }
+
   });
 }
 
@@ -116,7 +97,9 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
     const allWindows = BrowserWindow.getAllWindows();
     if (allWindows.length > 0) {
       const existingWin = allWindows[0];
-      console.log(`[WindowUtils] Single window mode enabled. Reusing existing window ${existingWin.id}`);
+      console.log(
+        `[WindowUtils] Single window mode enabled. Reusing existing window ${existingWin.id}`
+      );
 
       if (existingWin.isMinimized()) existingWin.restore();
       existingWin.focus();
@@ -136,7 +119,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
 
   // 尝试加载保存的窗口状态（基于URL）
   const savedState = url ? loadWindowState(accountIdx, url) : null;
-  
+
   // 如果没有指定位置和大小，使用保存的状态或自动偏移
   let posX = x;
   let posY = y;
@@ -184,7 +167,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
 
   ses.setPermissionRequestHandler((webContents, permission, callback) => {
     // 允许麦克风权限（语音输入需要）
-    if (permission === 'media') {
+    if (permission === "media") {
       console.log(`[Permission] 已自动允许: ${permission}`);
       return callback(true);
     }
@@ -194,7 +177,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
 
   // 💡 额外保险：处理权限检查（某些新版 Electron 需要这个）
   ses.setPermissionCheckHandler((webContents, permission, originatingOrigin) => {
-    if (permission === 'media') return true;
+    if (permission === "media") return true;
     return false;
   });
 

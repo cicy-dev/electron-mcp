@@ -29,7 +29,7 @@ function setupMcpRoutes(app, mcpServer, authMiddleware) {
     if (!sessionId) {
       return res.status(400).json({ error: "sessionId required" });
     }
-    
+
     log.debug(`[MCP] SSE connection established: ${sessionId}`);
     const transport = createTransport(res, sessionId);
     await mcpServer.connect(transport);

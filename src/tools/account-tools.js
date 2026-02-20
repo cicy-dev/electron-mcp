@@ -16,7 +16,7 @@ module.exports = (registerTool) => {
     async ({ accountIdx }) => {
       try {
         const accountFile = path.join(ACCOUNT_DIR, `account-${accountIdx}.json`);
-        
+
         if (!fs.existsSync(accountFile)) {
           return {
             content: [
@@ -28,9 +28,9 @@ module.exports = (registerTool) => {
             isError: true,
           };
         }
-        
+
         const accountData = JSON.parse(fs.readFileSync(accountFile, "utf-8"));
-        
+
         return {
           content: [
             {
@@ -55,10 +55,12 @@ module.exports = (registerTool) => {
     "保存或更新账户配置信息",
     z.object({
       accountIdx: z.number().describe("账户索引"),
-      metadata: z.object({
-        description: z.string().optional().describe("账户描述"),
-        tags: z.array(z.string()).optional().describe("标签"),
-      }).optional(),
+      metadata: z
+        .object({
+          description: z.string().optional().describe("账户描述"),
+          tags: z.array(z.string()).optional().describe("标签"),
+        })
+        .optional(),
     }),
     async ({ accountIdx, metadata }) => {
       try {
@@ -66,11 +68,11 @@ module.exports = (registerTool) => {
         if (!fs.existsSync(ACCOUNT_DIR)) {
           fs.mkdirSync(ACCOUNT_DIR, { recursive: true });
         }
-        
+
         const accountFile = path.join(ACCOUNT_DIR, `account-${accountIdx}.json`);
-        
+
         let accountData;
-        
+
         if (fs.existsSync(accountFile)) {
           // 更新现有账户
           accountData = JSON.parse(fs.readFileSync(accountFile, "utf-8"));
@@ -91,9 +93,9 @@ module.exports = (registerTool) => {
             updatedAt: new Date().toISOString(),
           };
         }
-        
+
         fs.writeFileSync(accountFile, JSON.stringify(accountData, null, 2));
-        
+
         return {
           content: [
             {
@@ -124,7 +126,7 @@ module.exports = (registerTool) => {
             content: [{ type: "text", text: JSON.stringify([], null, 2) }],
           };
         }
-        
+
         const files = fs.readdirSync(ACCOUNT_DIR);
         const accounts = files
           .filter((f) => f.startsWith("account-") && f.endsWith(".json"))
@@ -133,7 +135,7 @@ module.exports = (registerTool) => {
             return JSON.parse(fs.readFileSync(accountFile, "utf-8"));
           })
           .sort((a, b) => a.accountIdx - b.accountIdx);
-        
+
         return {
           content: [{ type: "text", text: JSON.stringify(accounts, null, 2) }],
         };

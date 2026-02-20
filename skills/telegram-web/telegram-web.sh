@@ -175,7 +175,7 @@ get_qrcode() {
     fi
     
     # 截取整个窗口
-    curl-rpc webpage_screenshot_and_to_clipboard win_id="$WIN_ID" > /dev/null 2>&1
+    curl-rpc webpage_screenshot_to_clipboard win_id="$WIN_ID" > /dev/null 2>&1
     
     # 创建截图目录
     mkdir -p ~/Desktop/screenshot

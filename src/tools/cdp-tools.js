@@ -203,7 +203,11 @@ function registerTools(registerTool) {
     "执行粘贴操作，支持多种方法",
     z.object({
       win_id: z.number().optional().default(1).describe("窗口 ID"),
-      method: z.enum(["sendInputEvent", "cdp", "js"]).optional().default("sendInputEvent").describe("粘贴方法: sendInputEvent(推荐), cdp(CDP按键), js(JavaScript事件)"),
+      method: z
+        .enum(["sendInputEvent", "cdp", "js"])
+        .optional()
+        .default("sendInputEvent")
+        .describe("粘贴方法: sendInputEvent(推荐), cdp(CDP按键), js(JavaScript事件)"),
     }),
     async ({ win_id, method }) => {
       try {
@@ -215,20 +219,19 @@ function registerTools(registerTool) {
           win.webContents.sendInputEvent({
             type: "keyDown",
             keyCode: "V",
-            modifiers: ["control"]
+            modifiers: ["control"],
           });
           win.webContents.sendInputEvent({
             type: "char",
             keyCode: "V",
-            modifiers: ["control"]
+            modifiers: ["control"],
           });
           win.webContents.sendInputEvent({
             type: "keyUp",
             keyCode: "V",
-            modifiers: ["control"]
+            modifiers: ["control"],
           });
           return { content: [{ type: "text", text: "Paste via sendInputEvent" }] };
-          
         } else if (method === "cdp") {
           // Method 2: CDP dispatchKeyEvent (底层 - 不触发paste事件)
           await sendCDP(win.webContents, "Input.dispatchKeyEvent", {
@@ -241,17 +244,18 @@ function registerTools(registerTool) {
             key: "v",
             modifiers: 2,
           });
-          return { content: [{ type: "text", text: "Paste via CDP (may not trigger paste event)" }] };
-          
+          return {
+            content: [{ type: "text", text: "Paste via CDP (may not trigger paste event)" }],
+          };
         } else if (method === "js") {
           // Method 3: JavaScript ClipboardEvent (完全控制)
           const text = clipboard.readText();
           const image = clipboard.readImage();
-          
+
           if (!image.isEmpty()) {
             // Paste image
             const buffer = image.toPNG();
-            const base64 = buffer.toString('base64');
+            const base64 = buffer.toString("base64");
             await win.webContents.executeJavaScript(`
               (async function() {
                 const base64 = ${JSON.stringify(base64)};

@@ -51,7 +51,7 @@ const authManager = new AuthManager();
 global.authManager = authManager; // Make it globally accessible
 const authMiddleware = (req, res, next) => {
   if (!authManager.validateAuth(req)) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Electron MCP"');
+    res.setHeader("WWW-Authenticate", 'Basic realm="Electron MCP"');
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
@@ -77,30 +77,30 @@ setupMcpRoutes(app, mcpServer, authMiddleware);
 // RPC endpoint with hot reload
 app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
   let body = req.body;
-  
+
   // Parse YAML if Content-Type is application/yaml
-  if (req.get('Content-Type')?.includes('application/yaml')) {
+  if (req.get("Content-Type")?.includes("application/yaml")) {
     try {
-      const yaml = require('js-yaml');
+      const yaml = require("js-yaml");
       const rawBody = await new Promise((resolve) => {
-        let data = '';
-        req.on('data', chunk => data += chunk);
-        req.on('end', () => resolve(data));
+        let data = "";
+        req.on("data", (chunk) => (data += chunk));
+        req.on("end", () => resolve(data));
       });
       body = yaml.load(rawBody);
     } catch (error) {
       return res.status(400).json({ error: `Invalid YAML: ${error.message}` });
     }
   }
-  
+
   const { name, arguments: args } = body;
   try {
     // Re-load tool modules
-    const toolModules = require('./tools');
-    
+    const toolModules = require("./tools");
+
     let handler = null;
     let schema = null;
-    
+
     toolModules.forEach((module) => {
       module((title, description, toolSchema, toolHandler, options) => {
         if (title === name) {
@@ -109,14 +109,14 @@ app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
         }
       });
     });
-    
+
     if (!handler) {
       throw new Error(`Tool '${name}' not found`);
     }
-    
+
     const validatedArgs = schema.parse(args || {});
     const result = await handler(validatedArgs);
-    
+
     // Support YAML response
     const accept = req.headers.accept || "application/json";
     if (accept.includes("application/yaml") || accept.includes("text/yaml")) {
@@ -127,13 +127,13 @@ app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
     }
   } catch (error) {
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
-      const errorMsg = error.errors.map(e => e.message).join(', ');
-      return res.json({ 
-        result: { 
-          content: [{ type: "text", text: errorMsg }], 
-          isError: true 
-        } 
+    if (error.name === "ZodError") {
+      const errorMsg = error.errors.map((e) => e.message).join(", ");
+      return res.json({
+        result: {
+          content: [{ type: "text", text: errorMsg }],
+          isError: true,
+        },
       });
     }
     res.status(500).json({ error: error.message });
@@ -143,7 +143,7 @@ app.post("/rpc/tools/call", authMiddleware, async (req, res) => {
 app.get("/rpc/tools", authMiddleware, (req, res) => {
   const accept = req.headers.accept || "application/json";
   const allTools = Object.values(tools).flat();
-  
+
   if (accept.includes("application/yaml") || accept.includes("text/yaml")) {
     const yaml = require("js-yaml");
     res.type("yaml").send(yaml.dump({ tools: allTools }));
@@ -166,70 +166,72 @@ app.use("/files", authMiddleware, require("express").static(FILES_DIR));
 app.use("/files", authMiddleware, serveIndex(FILES_DIR, { icons: true, view: "details" }));
 
 // Dynamic tool endpoints: /rpc/{tool_name}
-Object.values(tools).flat().forEach(tool => {
-  app.post(`/rpc/${tool.name}`, authMiddleware, async (req, res) => {
-    let body = req.body;
-    
-    // Parse YAML if Content-Type is application/yaml
-    if (req.get('Content-Type')?.includes('application/yaml')) {
+Object.values(tools)
+  .flat()
+  .forEach((tool) => {
+    app.post(`/rpc/${tool.name}`, authMiddleware, async (req, res) => {
+      let body = req.body;
+
+      // Parse YAML if Content-Type is application/yaml
+      if (req.get("Content-Type")?.includes("application/yaml")) {
+        try {
+          const yaml = require("js-yaml");
+          const rawBody = await new Promise((resolve) => {
+            let data = "";
+            req.on("data", (chunk) => (data += chunk));
+            req.on("end", () => resolve(data));
+          });
+          body = yaml.load(rawBody) || {};
+        } catch (error) {
+          return res.status(400).json({ error: `Invalid YAML: ${error.message}` });
+        }
+      }
+
       try {
-        const yaml = require('js-yaml');
-        const rawBody = await new Promise((resolve) => {
-          let data = '';
-          req.on('data', chunk => data += chunk);
-          req.on('end', () => resolve(data));
+        // Re-load tool modules
+        const toolModules = require("./tools");
+
+        let handler = null;
+        let schema = null;
+
+        toolModules.forEach((module) => {
+          module((name, desc, inputSchema, fn) => {
+            if (name === tool.name) {
+              handler = fn;
+              schema = inputSchema;
+            }
+          });
         });
-        body = yaml.load(rawBody) || {};
+
+        if (!handler) {
+          throw new Error(`Tool '${tool.name}' not found`);
+        }
+
+        const validatedArgs = schema.parse(body || {});
+        const result = await handler(validatedArgs);
+
+        // Support YAML response
+        const accept = req.headers.accept || "application/json";
+        if (accept.includes("application/yaml") || accept.includes("text/yaml")) {
+          const yaml = require("js-yaml");
+          res.type("yaml").send(yaml.dump({ result }));
+        } else {
+          res.json({ result });
+        }
       } catch (error) {
-        return res.status(400).json({ error: `Invalid YAML: ${error.message}` });
+        if (error.name === "ZodError") {
+          const errorMsg = error.errors.map((e) => e.message).join(", ");
+          return res.json({
+            result: {
+              content: [{ type: "text", text: errorMsg }],
+              isError: true,
+            },
+          });
+        }
+        res.status(500).json({ error: error.message });
       }
-    }
-    
-    try {
-      // Re-load tool modules
-      const toolModules = require('./tools');
-      
-      let handler = null;
-      let schema = null;
-      
-      toolModules.forEach(module => {
-        module((name, desc, inputSchema, fn) => {
-          if (name === tool.name) {
-            handler = fn;
-            schema = inputSchema;
-          }
-        });
-      });
-      
-      if (!handler) {
-        throw new Error(`Tool '${tool.name}' not found`);
-      }
-      
-      const validatedArgs = schema.parse(body || {});
-      const result = await handler(validatedArgs);
-      
-      // Support YAML response
-      const accept = req.headers.accept || "application/json";
-      if (accept.includes("application/yaml") || accept.includes("text/yaml")) {
-        const yaml = require("js-yaml");
-        res.type("yaml").send(yaml.dump({ result }));
-      } else {
-        res.json({ result });
-      }
-    } catch (error) {
-      if (error.name === 'ZodError') {
-        const errorMsg = error.errors.map(e => e.message).join(', ');
-        return res.json({ 
-          result: { 
-            content: [{ type: "text", text: errorMsg }], 
-            isError: true 
-          } 
-        });
-      }
-      res.status(500).json({ error: error.message });
-    }
+    });
   });
-});
 
 // Start server
 const server = http.createServer(app);
@@ -239,7 +241,6 @@ electronApp.commandLine.appendSwitch("remote-debugging-port", "9221");
 log.info("[MCP] Remote debugging enabled on port 9221");
 
 electronApp.whenReady().then(() => {
-
   server.listen(PORT, () => {
     log.info(`[MCP] Log file: ${config.logFilePath}`);
     log.info(`[MCP] Server listening on http://localhost:${PORT}`);

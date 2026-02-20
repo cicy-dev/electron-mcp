@@ -1,6 +1,6 @@
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   let PORT = args.find((arg) => arg.startsWith("--port="))?.split("=")[1];
   if (!PORT) {
     const portIndex = args.indexOf("--port");

@@ -13,38 +13,37 @@ const windowLoadingFinishedRequests = new Map(); // loadingFinished 捕获的完
 
 const MAX_INLINE_SIZE = 1024; // 1KB
 
-
 // 标准化路径：移除特殊字符，保留 .
 function sanitizePath(str) {
-  return str.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9-_.]/g, '_');
+  return str.replace(/^\/+|\/+$/g, "").replace(/[^a-zA-Z0-9-_.]/g, "_");
 }
 
 // 根据 content-type 获取扩展名
 function getExtFromContentType(contentType, isBinary) {
-  if (!contentType) return isBinary ? 'bin' : 'txt';
-  
+  if (!contentType) return isBinary ? "bin" : "txt";
+
   const mimeMap = {
-    'application/json': 'json',
-    'text/html': 'html',
-    'text/css': 'css',
-    'text/javascript': 'js',
-    'application/javascript': 'js',
-    'text/plain': 'txt',
-    'image/png': 'png',
-    'image/jpeg': 'jpg',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-    'image/svg+xml': 'svg',
-    'video/mp4': 'mp4',
-    'video/webm': 'webm',
-    'audio/mpeg': 'mp3',
-    'audio/wav': 'wav',
-    'application/pdf': 'pdf',
-    'application/zip': 'zip',
+    "application/json": "json",
+    "text/html": "html",
+    "text/css": "css",
+    "text/javascript": "js",
+    "application/javascript": "js",
+    "text/plain": "txt",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "application/pdf": "pdf",
+    "application/zip": "zip",
   };
-  
-  const mime = contentType.split(';')[0].trim().toLowerCase();
-  return mimeMap[mime] || (isBinary ? 'bin' : 'txt');
+
+  const mime = contentType.split(";")[0].trim().toLowerCase();
+  return mimeMap[mime] || (isBinary ? "bin" : "txt");
 }
 
 // 为每个窗口维护文件计数器
@@ -53,37 +52,38 @@ const windowFileCounters = new Map();
 // 处理数据：二进制或大数据保存到文件
 function handleData(winId, url, data, type, contentType) {
   if (!data) return null;
-  
+
   // 检查是否是二进制数据
   const isBinary = Buffer.isBuffer(data) || (data.bytes && Buffer.isBuffer(data.bytes));
-  
+
   // 检查大小
   let dataSize = 0;
   let content = data;
-  
+
   if (isBinary) {
     const buffer = Buffer.isBuffer(data) ? data : data.bytes;
     dataSize = buffer.length;
     content = buffer;
   } else {
-    const str = typeof data === 'string' ? data : JSON.stringify(data);
+    const str = typeof data === "string" ? data : JSON.stringify(data);
     dataSize = Buffer.byteLength(str);
     content = str;
   }
-  
+
   // 判断是否需要格式化的文件类型
-  const mime = contentType ? contentType.split(';')[0].trim().toLowerCase() : '';
-  const needsPretty = mime === 'application/json' || 
-                      mime === 'text/javascript' || 
-                      mime === 'application/javascript' ||
-                      mime === 'text/css' || 
-                      mime === 'text/html';
-  
+  const mime = contentType ? contentType.split(";")[0].trim().toLowerCase() : "";
+  const needsPretty =
+    mime === "application/json" ||
+    mime === "text/javascript" ||
+    mime === "application/javascript" ||
+    mime === "text/css" ||
+    mime === "text/html";
+
   // 如果是可格式化类型，或者大于1KB，保存到文件
   if (needsPretty || isBinary || dataSize > MAX_INLINE_SIZE) {
     return saveDataToFile(winId, url, content, type, contentType, isBinary, dataSize);
   }
-  
+
   // 其他小数据直接返回
   return data;
 }
@@ -95,118 +95,118 @@ function saveDataToFile(winId, url, content, type, contentType, isBinary, dataSi
     // 解析 URL
     const urlObj = new URL(url);
     const domain = sanitizePath(urlObj.hostname);
-    let pathname = urlObj.pathname.replace(/^\/+|\/+$/g, '') || 'root';
-    
+    let pathname = urlObj.pathname.replace(/^\/+|\/+$/g, "") || "root";
+
     // 限制路径长度，避免 ENAMETOOLONG 错误
     const MAX_PATH_LENGTH = 200;
     if (pathname.length > MAX_PATH_LENGTH) {
       // 截断并添加哈希
-      const crypto = require('crypto');
-      const hash = crypto.createHash('md5').update(pathname).digest('hex').substring(0, 8);
-      pathname = pathname.substring(0, MAX_PATH_LENGTH - 10) + '-' + hash;
+      const crypto = require("crypto");
+      const hash = crypto.createHash("md5").update(pathname).digest("hex").substring(0, 8);
+      pathname = pathname.substring(0, MAX_PATH_LENGTH - 10) + "-" + hash;
     }
-    
+
     let dir, baseName;
-    
+
     // 如果路径以 / 结尾，使用 index
-    if (urlObj.pathname.endsWith('/')) {
-      dir = path.join(os.homedir(), 'request-data', `win-${winId}`, domain, pathname);
-      baseName = 'index';
+    if (urlObj.pathname.endsWith("/")) {
+      dir = path.join(os.homedir(), "request-data", `win-${winId}`, domain, pathname);
+      baseName = "index";
     } else {
       // 分离目录和文件名
-      const lastSlash = pathname.lastIndexOf('/');
-      const dirPath = lastSlash >= 0 ? pathname.substring(0, lastSlash) : '';
+      const lastSlash = pathname.lastIndexOf("/");
+      const dirPath = lastSlash >= 0 ? pathname.substring(0, lastSlash) : "";
       baseName = lastSlash >= 0 ? pathname.substring(lastSlash + 1) : pathname;
-      
+
       // 移除原有扩展名
-      baseName = baseName.replace(/\.[^.]*$/, '');
-      
+      baseName = baseName.replace(/\.[^.]*$/, "");
+
       // 限制文件名长度
       if (baseName.length > 100) {
-        const crypto = require('crypto');
-        const hash = crypto.createHash('md5').update(baseName).digest('hex').substring(0, 8);
-        baseName = baseName.substring(0, 90) + '-' + hash;
+        const crypto = require("crypto");
+        const hash = crypto.createHash("md5").update(baseName).digest("hex").substring(0, 8);
+        baseName = baseName.substring(0, 90) + "-" + hash;
       }
-      
-      dir = path.join(os.homedir(), 'request-data', `win-${winId}`, domain, dirPath);
+
+      dir = path.join(os.homedir(), "request-data", `win-${winId}`, domain, dirPath);
     }
-    
+
     // 获取计数器
     if (!windowFileCounters.has(winId)) {
       windowFileCounters.set(winId, new Map());
     }
-  const counters = windowFileCounters.get(winId);
-  const key = `${domain}/${pathname}/${type}`;
-  const count = (counters.get(key) || 0) + 1;
-  counters.set(key, count);
-  
-  // 根据 content-type 确定扩展名
-  const ext = getExtFromContentType(contentType, isBinary);
-  
-  // 确定文件类型标识：header|body 和 req|res
-  let part, direction;
-  if (type === 'response') {
-    part = 'header';
-    direction = 'res';
-  } else if (type === 'response-body') {
-    part = 'body';
-    direction = 'res';
-  } else if (type === 'request') {
-    part = 'header';
-    direction = 'req';
-  } else if (type === 'post') {
-    part = 'body';
-    direction = 'req';
-  }
-  
-  // 文件名格式：{basename}-{timestamp}-{index}-{header|body}-{req|res}.{ext}
-  const ts = timestamp || Date.now();
-  const filename = `${baseName}-${ts}-${count}-${part}-${direction}.${ext}`;
-  
-  fs.mkdirSync(dir, { recursive: true });
-  const filepath = path.join(dir, filename);
-  
-  if (isBinary) {
-    fs.writeFileSync(filepath, content);
-  } else {
-    let formattedContent = content;
-    
-    // 使用 js-beautify 格式化
-    try {
-      const beautify = require('js-beautify');
-      const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-      
-      if (ext === 'json') {
-        formattedContent = beautify.js_beautify(contentStr, { indent_size: 2 });
-      } else if (ext === 'js') {
-        formattedContent = beautify.js_beautify(contentStr, { indent_size: 2 });
-      } else if (ext === 'css') {
-        formattedContent = beautify.css(contentStr, { indent_size: 2 });
-      } else if (ext === 'html') {
-        formattedContent = beautify.html(contentStr, { indent_size: 2 });
-      } else {
-        formattedContent = contentStr;
-      }
-    } catch (e) {
-      // 格式化失败，使用原始内容
-      formattedContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    const counters = windowFileCounters.get(winId);
+    const key = `${domain}/${pathname}/${type}`;
+    const count = (counters.get(key) || 0) + 1;
+    counters.set(key, count);
+
+    // 根据 content-type 确定扩展名
+    const ext = getExtFromContentType(contentType, isBinary);
+
+    // 确定文件类型标识：header|body 和 req|res
+    let part, direction;
+    if (type === "response") {
+      part = "header";
+      direction = "res";
+    } else if (type === "response-body") {
+      part = "body";
+      direction = "res";
+    } else if (type === "request") {
+      part = "header";
+      direction = "req";
+    } else if (type === "post") {
+      part = "body";
+      direction = "req";
     }
-    
-    fs.writeFileSync(filepath, formattedContent);
-  }
-  
-  return { 
-    __file: filepath, 
-    __size: dataSize,
-    __binary: isBinary
-  };
+
+    // 文件名格式：{basename}-{timestamp}-{index}-{header|body}-{req|res}.{ext}
+    const ts = timestamp || Date.now();
+    const filename = `${baseName}-${ts}-${count}-${part}-${direction}.${ext}`;
+
+    fs.mkdirSync(dir, { recursive: true });
+    const filepath = path.join(dir, filename);
+
+    if (isBinary) {
+      fs.writeFileSync(filepath, content);
+    } else {
+      let formattedContent = content;
+
+      // 使用 js-beautify 格式化
+      try {
+        const beautify = require("js-beautify");
+        const contentStr = typeof content === "string" ? content : JSON.stringify(content);
+
+        if (ext === "json") {
+          formattedContent = beautify.js_beautify(contentStr, { indent_size: 2 });
+        } else if (ext === "js") {
+          formattedContent = beautify.js_beautify(contentStr, { indent_size: 2 });
+        } else if (ext === "css") {
+          formattedContent = beautify.css(contentStr, { indent_size: 2 });
+        } else if (ext === "html") {
+          formattedContent = beautify.html(contentStr, { indent_size: 2 });
+        } else {
+          formattedContent = contentStr;
+        }
+      } catch (e) {
+        // 格式化失败，使用原始内容
+        formattedContent = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+      }
+
+      fs.writeFileSync(filepath, formattedContent);
+    }
+
+    return {
+      __file: filepath,
+      __size: dataSize,
+      __binary: isBinary,
+    };
   } catch (error) {
     // 文件保存失败，返回错误信息
     console.error(`[Window ${winId}] Failed to save file for ${url}:`, error.message);
     return {
       __error: error.message,
       __url: url,
-      __size: dataSize
+      __size: dataSize,
     };
   }
 }
@@ -219,19 +219,19 @@ function saveRequestsToFile(winId) {
     try {
       const urls = windowBeforeSendRequests.get(winId) || [];
       const detailsMap = windowLoadingFinishedRequests.get(winId) || new Map();
-      
+
       const data = {
         queue: urls,
-        map: Object.fromEntries(detailsMap)
+        map: Object.fromEntries(detailsMap),
       };
-      
+
       // 保存到 request-data 目录
-      const dir = path.join(os.homedir(), 'request-data', `win-${winId}`);
+      const dir = path.join(os.homedir(), "request-data", `win-${winId}`);
       fs.mkdirSync(dir, { recursive: true });
-      
-      const queueFile = path.join(dir, 'queue.json');
-      const mapFile = path.join(dir, 'map.json');
-      
+
+      const queueFile = path.join(dir, "queue.json");
+      const mapFile = path.join(dir, "map.json");
+
       fs.writeFileSync(queueFile, JSON.stringify(urls, null, 2));
       fs.writeFileSync(mapFile, JSON.stringify(Object.fromEntries(detailsMap), null, 2));
     } catch (e) {
@@ -255,18 +255,19 @@ function initWindowMonitoring(win) {
   win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
     const urlQueue = windowBeforeSendRequests.get(winId);
     const detailsMap = windowLoadingFinishedRequests.get(winId);
-    
+
     // 队列只存 URL
     if (urlQueue && !urlQueue.includes(details.url)) {
       urlQueue.push(details.url);
     }
-    
+
     // 详情存到 Map
     if (detailsMap) {
       const timestamp = Date.now();
-      const contentType = details.requestHeaders['Content-Type'] || details.requestHeaders['content-type'];
-      const postData = handleData(winId, details.url, details.uploadData, 'post', contentType);
-      
+      const contentType =
+        details.requestHeaders["Content-Type"] || details.requestHeaders["content-type"];
+      const postData = handleData(winId, details.url, details.uploadData, "post", contentType);
+
       const requestData = {
         timestamp,
         url: details.url,
@@ -275,12 +276,21 @@ function initWindowMonitoring(win) {
         headers: details.requestHeaders,
         postData: postData,
       };
-      
+
       // 保存完整 request 到文件
       const requestStr = JSON.stringify(requestData);
       const requestSize = Buffer.byteLength(requestStr);
-      const requestFile = saveDataToFile(winId, details.url, requestStr, 'request', 'application/json', false, requestSize, timestamp);
-      
+      const requestFile = saveDataToFile(
+        winId,
+        details.url,
+        requestStr,
+        "request",
+        "application/json",
+        false,
+        requestSize,
+        timestamp
+      );
+
       // 如果 URL 已存在，追加到数组；否则创建新条目
       if (detailsMap.has(details.url)) {
         const entry = detailsMap.get(details.url);
@@ -293,7 +303,7 @@ function initWindowMonitoring(win) {
       }
       saveRequestsToFile(winId);
     }
-    
+
     callback({ requestHeaders: details.requestHeaders });
   });
 
@@ -308,7 +318,17 @@ function initWindowMonitoring(win) {
   // 监听控制台日志
   win.webContents.on("console-message", (event, level, message, line, sourceId) => {
     const logs = windowLogs.get(winId);
+
     const counters = windowIndexCounters.get(winId);
+    console.log(
+      `[${JSON.stringify({
+        timestamp: Date.now(),
+        level: ["verbose", "info", "warning", "error"][level] || "log",
+        message,
+        line,
+        source: sourceId,
+      })}`
+    );
     if (logs && counters) {
       logs.push({
         index: ++counters.log,
@@ -338,12 +358,12 @@ function initWindowMonitoring(win) {
         mimeType: params.response.mimeType,
       });
     }
-    
+
     // loadingFinished: 更新 Map 中的 response
     if (method === "Network.loadingFinished") {
       const url = requestIdToUrl.get(params.requestId);
       const responseInfo = requestIdToResponse.get(params.requestId);
-      
+
       if (url && responseInfo) {
         const loadingFinishedMap = windowLoadingFinishedRequests.get(winId);
         const entry = loadingFinishedMap?.get(url);
@@ -351,16 +371,22 @@ function initWindowMonitoring(win) {
           // 尝试获取 response body
           let responseBody = null;
           try {
-            const result = await win.webContents.debugger.sendCommand('Network.getResponseBody', {
-              requestId: params.requestId
+            const result = await win.webContents.debugger.sendCommand("Network.getResponseBody", {
+              requestId: params.requestId,
             });
             if (result.body) {
-              responseBody = handleData(winId, url, result.base64Encoded ? Buffer.from(result.body, 'base64') : result.body, 'response-body', responseInfo.mimeType);
+              responseBody = handleData(
+                winId,
+                url,
+                result.base64Encoded ? Buffer.from(result.body, "base64") : result.body,
+                "response-body",
+                responseInfo.mimeType
+              );
             }
           } catch (e) {
             // 某些请求无法获取 body（如 304, 204 等）
           }
-          
+
           const responseData = {
             timestamp: Date.now(),
             status: responseInfo.status,
@@ -370,12 +396,21 @@ function initWindowMonitoring(win) {
             encodedDataLength: params.encodedDataLength,
             body: responseBody,
           };
-          
+
           // 强制保存完整 response 到文件
           const responseStr = JSON.stringify(responseData);
           const responseSize = Buffer.byteLength(responseStr);
-          const responseFile = saveDataToFile(winId, url, responseStr, 'response', 'application/json', false, responseSize, responseData.timestamp);
-          
+          const responseFile = saveDataToFile(
+            winId,
+            url,
+            responseStr,
+            "response",
+            "application/json",
+            false,
+            responseSize,
+            responseData.timestamp
+          );
+
           // 追加到 responses 数组（只保留文件引用）
           entry.responses.push(responseFile);
           saveRequestsToFile(winId);
@@ -397,12 +432,12 @@ function initWindowMonitoring(win) {
         const postDataSize = postData ? Buffer.byteLength(postData, "utf8") : 0;
 
         // 打印包含 __vid 的请求
-        if (params.request.url.includes('__vid')) {
-          console.log('\n=== REQUEST WITH __vid DETECTED ===');
-          console.log('URL:', params.request.url);
-          console.log('Method:', params.request.method);
-          console.log('Type:', params.type);
-          console.log('===================================\n');
+        if (params.request.url.includes("__vid")) {
+          console.log("\n=== REQUEST WITH __vid DETECTED ===");
+          console.log("URL:", params.request.url);
+          console.log("Method:", params.request.method);
+          console.log("Type:", params.type);
+          console.log("===================================\n");
         }
 
         requests.push({
@@ -464,11 +499,10 @@ function initWindowMonitoring(win) {
       if (!info) return;
 
       // 旧的文件保存逻辑已删除，现在使用新的 handleData 逻辑
-      
+
       win.webContents.session.flushStorageData();
     }
   });
-
 
   // 页面重载时清空队列并重置计数器（注释掉，避免误清空）
   // win.webContents.on("did-start-loading", () => {

@@ -83,17 +83,17 @@ function registerTools(registerTool) {
     async ({ url, accountIdx, reuseWindow, options }) => {
       // Determine if we should create a new window
       const forceNew = reuseWindow === false;
-      
+
       // Get existing windows count before creating
       const existingCount = BrowserWindow.getAllWindows().length;
-      
+
       // Create or reuse window
       const win = createWindow({ url, ...options }, accountIdx, forceNew);
-      
+
       // Check if window was reused (count didn't change)
       const newCount = BrowserWindow.getAllWindows().length;
       const wasReused = newCount === existingCount;
-      
+
       if (wasReused) {
         return {
           content: [
@@ -185,7 +185,7 @@ function registerTools(registerTool) {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const execute = new AsyncFunction("win", "webContents", `return ${code}`);
         const result = await execute(win, win.webContents);
 
@@ -259,7 +259,7 @@ function registerTools(registerTool) {
         const win = BrowserWindow.fromId(win_id);
         if (!win) throw new Error(`未找到窗口 ${win_id}`);
 
-        const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
+        const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
         const execute = new AsyncFunction("webContents", "win", `return ${code}`);
         let result = await execute(win.webContents, win);
 
@@ -303,12 +303,12 @@ function registerTools(registerTool) {
 
         // 关键词过滤
         if (keyword) {
-          logs = logs.filter(log => log.message.includes(keyword));
+          logs = logs.filter((log) => log.message.includes(keyword));
         }
 
         // 级别过滤
         if (level) {
-          logs = logs.filter(log => log.level === level);
+          logs = logs.filter((log) => log.level === level);
         }
 
         const start = (page - 1) * page_size;
@@ -346,16 +346,16 @@ function registerTools(registerTool) {
           requestCount: data.requests?.length || 0,
           responseCount: data.responses?.length || 0,
           requests: data.requests || [],
-          responses: data.responses || []
+          responses: data.responses || [],
         }));
 
         // 应用过滤
         if (filter) {
           try {
-            const regex = new RegExp(filter, 'i');
-            entries = entries.filter(entry => regex.test(entry.url));
+            const regex = new RegExp(filter, "i");
+            entries = entries.filter((entry) => regex.test(entry.url));
           } catch (e) {
-            entries = entries.filter(entry => entry.url.includes(filter));
+            entries = entries.filter((entry) => entry.url.includes(filter));
           }
         }
 
@@ -600,7 +600,7 @@ function registerTools(registerTool) {
   );
 
   registerTool(
-    "webpage_screenshot_and_to_clipboard",
+    "webpage_screenshot_to_clipboard",
     `捕获指定窗口的页面截图并自动复制到系统剪贴板。这是快速获取页面视觉内容的便捷工具。
 
 主要用途：
@@ -644,7 +644,11 @@ function registerTools(registerTool) {
       win_id: z.number().optional().describe("Window ID"),
       max_elements: z.number().optional().default(20).describe("最大元素数量"),
       include_screenshot: z.boolean().optional().default(true).describe("是否包含截图"),
-      show_overlays: z.boolean().optional().default(false).describe("是否显示可点击元素遮罩(5秒后消失)"),
+      show_overlays: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("是否显示可点击元素遮罩(5秒后消失)"),
     }),
     async ({ win_id, max_elements, include_screenshot, show_overlays }) => {
       try {
@@ -801,11 +805,11 @@ function registerTools(registerTool) {
         // 应用过滤
         if (filter) {
           try {
-            const regex = new RegExp(filter, 'i');
-            urls = urls.filter(url => regex.test(url));
+            const regex = new RegExp(filter, "i");
+            urls = urls.filter((url) => regex.test(url));
           } catch (e) {
             // 如果不是有效的正则，使用简单字符串匹配
-            urls = urls.filter(url => url.includes(filter));
+            urls = urls.filter((url) => url.includes(filter));
           }
         }
 
@@ -838,7 +842,10 @@ function registerTools(registerTool) {
       try {
         const detail = getRequestDetailByUrl(win_id, url);
         if (!detail) {
-          return { content: [{ type: "text", text: `Request not found for URL: ${url}` }], isError: true };
+          return {
+            content: [{ type: "text", text: `Request not found for URL: ${url}` }],
+            isError: true,
+          };
         }
 
         // 返回文件路径列表，用户可以自己读取文件
@@ -847,7 +854,7 @@ function registerTools(registerTool) {
           requestCount: detail.requests?.length || 0,
           responseCount: detail.responses?.length || 0,
           requests: detail.requests || [],
-          responses: detail.responses || []
+          responses: detail.responses || [],
         };
 
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };

@@ -5,7 +5,7 @@ function setupElectronFlags() {
   // Must be called before app.whenReady()
   electronApp.commandLine.appendSwitch("no-sandbox");
   electronApp.commandLine.appendSwitch("disable-setuid-sandbox");
-  
+
   if (process.platform === "linux") {
     process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true";
     electronApp.commandLine.appendSwitch("log-level", "3");

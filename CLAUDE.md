@@ -77,7 +77,7 @@ pkill electron
 3. **CDP Mouse**: `cdp_click`, `cdp_double_click`
 4. **CDP Keyboard**: `cdp_press_key`, `cdp_type_text`, `cdp_press_key_enter`, etc.
 5. **CDP Page**: `cdp_scroll`, `cdp_find_element`, `cdp_execute_script`, `cdp_get_page_title`
-6. **Screenshots**: `webpage_screenshot_and_to_clipboard`
+6. **Screenshots**: `webpage_screenshot_to_clipboard`
 7. **System**: `ping`
 
 ### Authentication System

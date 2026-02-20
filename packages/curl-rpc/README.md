@@ -329,7 +329,7 @@ curl-rpc cdp_mouse_up win_id=1 x=100 y=100
 
 ```bash
 # 网页截图并复制到剪贴板
-curl-rpc webpage_screenshot_and_to_clipboard win_id=1
+curl-rpc webpage_screenshot_to_clipboard win_id=1
 
 # 网页快照（截图+HTML）
 curl-rpc webpage_snapshot win_id=1 save_path=/tmp/snapshot.png
