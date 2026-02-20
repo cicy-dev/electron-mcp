@@ -122,6 +122,33 @@ bash skills/download-douyin-video/download-douyin-video.sh <url>
 
 ---
 
+### gemini-web
+
+**位置:** `./gemini-web`  
+**功能:** Gemini Web 自动化
+
+```bash
+# 查看状态
+curl-rpc gemini_web_status
+
+# 检查登录
+curl-rpc is_gemini_logged
+
+# 粘贴图片到输入框
+curl-rpc gemini_paste_image
+
+# 设置问题并发送
+curl-rpc gemini_web_set_prompt text="问题"
+curl-rpc gemini_web_click_send
+
+# 发送消息并等待回复
+curl-rpc gemini_web_ask text="你好"
+```
+
+[文档](./gemini-web/README.md)
+
+---
+
 ### chatgpt-web
 
 **位置:** `./chatgpt-web`  

@@ -3,6 +3,8 @@
 module.exports = [
   require("./ping"),
   require("./r-reset"),
+  require("./hook-chatgpt"),
+  require("./hook-gemini"),
   require("./window-tools"),
   require("./cdp-tools"),
   require("./exec-js"),
