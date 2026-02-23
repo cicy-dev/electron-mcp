@@ -640,18 +640,17 @@ function registerTools(registerTool) {
 
   registerTool(
     "webpage_snapshot",
-    "捕获页面的结构快照，包含 URL、截图和所有可交互元素的信息。支持按类型/文本搜索元素。",
+    "捕获页面的结构快照，包含 URL 和所有可交互元素的信息。支持按类型/文本搜索元素。",
     z.object({
       win_id: z.number().optional().describe("Window ID"),
       max_elements: z.number().optional().default(20).describe("最大元素数量"),
-      include_screenshot: z.boolean().optional().default(false).describe("是否包含截图"),
       show_overlays: z
         .boolean()
         .optional()
         .default(false)
         .describe("是否显示可点击元素遮罩(5秒后消失)"),
     }),
-    async ({ win_id, max_elements, include_screenshot, show_overlays }) => {
+    async ({ win_id, max_elements, show_overlays }) => {
       try {
         const actualWinId = win_id || 1;
         const win = BrowserWindow.fromId(actualWinId);
@@ -748,23 +747,6 @@ function registerTools(registerTool) {
                 .join("\n"),
           },
         ];
-
-        if (include_screenshot) {
-          const snapshotResult = await captureSnapshot(win.webContents, { win_id: actualWinId });
-          const imageContent = snapshotResult.content.find((item) => item.type === "image");
-          if (imageContent) {
-            response.push({
-              type: "image",
-              data: imageContent.data,
-              mimeType: "image/png",
-            });
-          }
-        } else {
-          response.push({
-            type: "text",
-            text: "\nNote: Screenshot not included. Pass include_screenshot=true to get the screenshot image."
-          });
-        }
 
         if (show_overlays) {
           await win.webContents.executeJavaScript(`
