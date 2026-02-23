@@ -644,7 +644,7 @@ function registerTools(registerTool) {
     z.object({
       win_id: z.number().optional().describe("Window ID"),
       max_elements: z.number().optional().default(20).describe("最大元素数量"),
-      include_screenshot: z.boolean().optional().default(true).describe("是否包含截图"),
+      include_screenshot: z.boolean().optional().default(false).describe("是否包含截图"),
       show_overlays: z
         .boolean()
         .optional()
