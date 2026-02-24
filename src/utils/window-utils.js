@@ -85,7 +85,9 @@ function setupWindowHandlers(win) {
         })()
       `);
       console.log(`[DomReady] Injected script for ${domain}`);
-
+    } catch (error) {
+      console.error("[DomReady] Error:", error);
+    }
   });
 }
 
