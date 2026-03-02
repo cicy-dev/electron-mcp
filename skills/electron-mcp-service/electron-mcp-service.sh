@@ -7,7 +7,7 @@ DISPLAY_NUM=${3:-:1}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/electron-mcp-${PORT}.log"
 PID_FILE="/tmp/electron-mcp-${PORT}.pid"
-
+cd ~/projects/electron-mcp/main/
 start() {
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
