@@ -4,10 +4,10 @@
 COMMAND=${1:-start}
 PORT=${2:-8101}
 DISPLAY_NUM=${3:-:1}
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$HOME/projects/electron-mcp/main"
 LOG_FILE="/tmp/electron-mcp-${PORT}.log"
 PID_FILE="/tmp/electron-mcp-${PORT}.pid"
-cd ~/projects/electron-mcp/main/
+
 start() {
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
@@ -19,7 +19,7 @@ start() {
 
     echo "🚀 启动服务 (端口: $PORT, DISPLAY: $DISPLAY_NUM)..."
     
-    cd "$SCRIPT_DIR"
+    cd "$PROJECT_DIR"
     DISPLAY=$DISPLAY_NUM PORT=$PORT npm start -- --one-window > "$LOG_FILE" 2>&1 &
     local pid=$!
     echo $pid > "$PID_FILE"
