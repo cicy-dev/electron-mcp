@@ -243,7 +243,8 @@ else
       exec_python_file) EXEC_TYPE="python" ;;
       exec_node_file) EXEC_TYPE="node" ;;
       exec_js_file) EXEC_TYPE="js" ;;
-      *) echo "❌ Error: @file upload only supported for exec_*_file tools"; exit 1 ;;
+      file_write) EXEC_TYPE="__upload__" ;;
+      *) echo "❌ Error: @file upload only supported for exec_*_file and file_write tools"; exit 1 ;;
     esac
     USE_UPLOAD=1
   else
@@ -342,11 +343,28 @@ if ! curl --noproxy "*" -s --connect-timeout 2 $ELECTRON_MCP_URL/rpc/tools/list 
   exit 1
 fi
 
-# File upload path: send file directly to /rpc/exec/:type
+# File upload path: send file directly to /rpc/exec/:type or /rpc/upload/:path
 if [ "${USE_UPLOAD:-0}" = "1" ]; then
-  RESPONSE=$(curl --noproxy "*" -s -w "\n%{http_code}" -X POST "$ELECTRON_MCP_URL/rpc/exec/$EXEC_TYPE" \
-    -H "Authorization: Bearer $TOKEN" \
-    --data-binary "@$UPLOAD_FILE" 2>&1)
+  if [ "$EXEC_TYPE" = "__upload__" ]; then
+    # file_write: need path= param
+    REMOTE_PATH=""
+    for arg in "$@"; do
+      if [[ "$arg" =~ ^path=(.+)$ ]]; then
+        REMOTE_PATH="${BASH_REMATCH[1]}"
+      fi
+    done
+    if [ -z "$REMOTE_PATH" ]; then
+      echo "❌ Error: file_write @file requires path= parameter"
+      exit 1
+    fi
+    RESPONSE=$(curl --noproxy "*" -s -w "\n%{http_code}" -X POST "$ELECTRON_MCP_URL/rpc/upload/$REMOTE_PATH" \
+      -H "Authorization: Bearer $TOKEN" \
+      --data-binary "@$UPLOAD_FILE" 2>&1)
+  else
+    RESPONSE=$(curl --noproxy "*" -s -w "\n%{http_code}" -X POST "$ELECTRON_MCP_URL/rpc/exec/$EXEC_TYPE" \
+      -H "Authorization: Bearer $TOKEN" \
+      --data-binary "@$UPLOAD_FILE" 2>&1)
+  fi
   HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
   BODY=$(echo "$RESPONSE" | sed '$d')
   if [ "$HTTP_CODE" != "200" ]; then
