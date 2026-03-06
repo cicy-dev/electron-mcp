@@ -24,6 +24,12 @@ curl-rpc - 轻量级 Electron MCP RPC 命令行工具
   tools <tool_name>             查看工具详情
   <tool_name> [key=value ...]   调用工具
 
+文件上传执行 (@file):
+  exec_js_file @local.js        上传JS文件在浏览器页面中执行
+  exec_node_file @local.js      上传JS文件用Node.js执行
+  exec_python_file @local.py    上传Python文件执行
+  exec_shell_file @local.bat    上传Shell脚本执行
+
 选项:
   --json, -j                    使用 JSON 格式
   --help, -h                    显示帮助
@@ -38,9 +44,10 @@ curl-rpc - 轻量级 Electron MCP RPC 命令行工具
 示例:
   curl-rpc init                 初始化配置
   curl-rpc tools                列出所有工具
-  curl-rpc tools ping           查看 ping 工具详情
   curl-rpc ping                 测试连接
   curl-rpc open_window url=https://example.com
+  curl-rpc exec_node_file @script.js
+  ELECTRON_MCP_NODE=1 curl-rpc exec_js_file @inject.js
 
 详细文档: https://github.com/cicy-dev/electron-mcp/blob/main/packages/curl-rpc/README.md
 EOF
