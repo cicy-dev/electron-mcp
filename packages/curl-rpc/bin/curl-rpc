@@ -29,6 +29,7 @@ curl-rpc - 轻量级 Electron MCP RPC 命令行工具
   exec_node_file @local.js      上传JS文件用Node.js执行
   exec_python_file @local.py    上传Python文件执行
   exec_shell_file @local.bat    上传Shell脚本执行
+  file_write @local.js path=<remote_path>  上传文件到指定路径
 
 选项:
   --json, -j                    使用 JSON 格式
