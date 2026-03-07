@@ -309,5 +309,4 @@ function cleanup() {
   electronApp.quit();
 }
 
-process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
