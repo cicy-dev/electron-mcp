@@ -156,6 +156,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
       offscreen: false, // 确保不是离屏渲染
       nodeIntegration: false,
       contextIsolation: true,
+      webviewTag: true,
       partition: `persist:sandbox-${accountIdx}`,
       ...webPreferences,
     },
