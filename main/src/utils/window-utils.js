@@ -92,7 +92,7 @@ function setupWindowHandlers(win) {
 }
 
 function createWindow(options = {}, accountIdx = 0, forceNew = false) {
-  const { width = 1200, height = 800, url, webPreferences = {}, x, y } = options;
+  const { width = 1200, height = 800, url, webPreferences = {}, x, y, proxy } = options;
 
   // Check if oneWindow mode is enabled - execute before coordinate logic
   if (config.oneWindow && !forceNew) {
