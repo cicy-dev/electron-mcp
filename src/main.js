@@ -7,6 +7,10 @@ if (process.platform === "linux") {
   electronApp.commandLine.appendSwitch("log-level", "3");
   electronApp.commandLine.appendSwitch("disable-notifications");
   electronApp.commandLine.appendSwitch("ignore-certificate-errors");
+  if (process.env.ELECTRON_DISABLE_HTTP_CACHE === "1") {
+    electronApp.commandLine.appendSwitch("disable-http-cache");
+    electronApp.commandLine.appendSwitch("disable-application-cache");
+  }
   electronApp.commandLine.appendSwitch("disable-geolocation");
   electronApp.commandLine.appendSwitch("disable-dev-shm-usage");
   electronApp.commandLine.appendSwitch("use-gl", "angle");
