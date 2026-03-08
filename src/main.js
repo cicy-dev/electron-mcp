@@ -34,7 +34,7 @@ const { registerTool } = require("./server/tool-registry");
 setupErrorHandlers();
 
 // Parse arguments
-const { PORT, START_URL, oneWindow } = parseArgs();
+const { PORT, START_URL, PROXY, oneWindow } = parseArgs();
 config.port = PORT;
 if (oneWindow) {
   config.oneWindow = true;

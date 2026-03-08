@@ -21,9 +21,17 @@ function parseArgs() {
     }
   }
 
+  let PROXY = args.find((arg) => arg.startsWith("--proxy="))?.split("=")[1];
+  if (!PROXY) {
+    const proxyIndex = args.indexOf("--proxy");
+    if (proxyIndex !== -1 && args[proxyIndex + 1]) {
+      PROXY = args[proxyIndex + 1];
+    }
+  }
+
   const oneWindow = args.includes("--one-window");
 
-  return { PORT, START_URL, oneWindow };
+  return { PORT, START_URL, PROXY, oneWindow };
 }
 
 module.exports = { parseArgs };
