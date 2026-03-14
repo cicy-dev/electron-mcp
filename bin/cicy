@@ -9,7 +9,90 @@ const PID_FILE = path.join(HOME, '.cicy.pid');
 const LOG_FILE = path.join(HOME, 'logs', 'cicy.log');
 const PACKAGE_ROOT = path.join(__dirname, '..');
 
-const command = process.argv[2];
+const args = process.argv.slice(2);
+
+let command = 'start';
+let useCNMirror = false;
+let runUpdate = false;
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === '-h' || arg === '--help') {
+    showHelp();
+    process.exit(0);
+  } else if (arg === '-cn' || arg === '--cn') {
+    useCNMirror = true;
+  } else if (arg === '-u' || arg === '--update') {
+    runUpdate = true;
+  } else if (!arg.startsWith('-')) {
+    command = arg;
+  }
+}
+
+if (useCNMirror) {
+  try {
+    execSync('npm config set registry https://registry.npmmirror.com', { stdio: 'inherit' });
+    console.log('📦 Using CN npm mirror');
+  } catch (err) {
+    console.error('❌ Failed to set npm mirror:', err.message);
+  }
+}
+
+if (runUpdate) {
+  update();
+} else {
+  executeCommand(command);
+}
+
+function showHelp() {
+  console.log(`cicy - Electron MCP Controller
+
+Usage: cicy [command] [options]
+
+Commands:
+  start     Start cicy (default)
+  stop      Stop cicy
+  status    Check cicy status
+  restart   Restart cicy
+  logs      View logs (tail -f)
+
+Options:
+  -h, --help     Show this help message
+  -cn            Use CN npm mirror
+  -u, --update   Update cicy to latest version
+
+Examples:
+  cicy start
+  cicy -cn start
+  cicy -u
+  cicy -cn -u`);
+}
+
+function update() {
+  console.log('🔄 Updating cicy...');
+  try {
+    execSync('git pull', { cwd: PACKAGE_ROOT, stdio: 'inherit' });
+    execSync('npm install', { cwd: PACKAGE_ROOT, stdio: 'inherit' });
+    console.log('✅ cicy updated successfully');
+  } catch (err) {
+    console.error('❌ Update failed:', err.message);
+    process.exit(1);
+  }
+}
+
+function executeCommand(cmd) {
+  switch (cmd) {
+    case 'start': start(); break;
+    case 'stop': stop(); break;
+    case 'status': status(); break;
+    case 'restart': restart(); break;
+    case 'logs': logs(); break;
+    default:
+      console.log(`Unknown command: ${cmd}`);
+      console.log('Usage: cicy <start|stop|status|restart|logs>');
+      process.exit(1);
+  }
+}
 
 function getPid() {
   try {
@@ -90,15 +173,4 @@ function logs() {
     return;
   }
   execSync(`tail -f ${LOG_FILE}`, { stdio: 'inherit' });
-}
-
-switch (command) {
-  case 'start': start(); break;
-  case 'stop': stop(); break;
-  case 'status': status(); break;
-  case 'restart': restart(); break;
-  case 'logs': logs(); break;
-  default:
-    console.log('Usage: cicy <start|stop|status|restart|logs>');
-    process.exit(1);
 }
