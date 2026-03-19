@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require("electron");
+const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -10,6 +10,15 @@ const { loadWindowState, watchWindowState } = require("./window-state");
 app.name = "ElectronMCP";
 
 function setupWindowHandlers(win) {
+
+  // Hook window.open to use createWindow with proper webPreferences (webviewTag etc)
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    log.info(`[WindowOpen] Intercepted: ${url}`);
+    if (url && url !== "about:blank") {
+      showOpenLinkDialog(win, url);
+    }
+    return { action: "deny" };
+  });
   if (!win.webContents.debugger.isAttached()) {
     win.webContents.debugger.attach("1.3");
   }
@@ -231,7 +240,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
       return callback(true);
     }
     // 允许剪贴板权限
-    if (permission === "clipboard-read" || permission === "clipboard-write") {
+    if (permission.startsWith("clipboard")) {
       log.info(`[Permission] 已自动允许剪贴板权限: ${permission}`);
       return callback(true);
     }
@@ -243,7 +252,7 @@ function createWindow(options = {}, accountIdx = 0, forceNew = false) {
   ses.setPermissionCheckHandler((webContents, permission, originatingOrigin) => {
     if (permission === "media") return true;
     // 允许剪贴板权限检查
-    if (permission === "clipboard-read" || permission === "clipboard-write") return true;
+    if (permission.startsWith("clipboard")) return true;
     return false;
   });
 
@@ -301,6 +310,24 @@ function getWindowInfo(win) {
 app.on("browser-window-created", (event, win) => {
   setupWindowHandlers(win);
 });
+
+
+function showOpenLinkDialog(parentWin, url) {
+  dialog.showMessageBox(parentWin, {
+    type: 'question',
+    buttons: ['Open in Browser', 'Open in App', 'Cancel'],
+    defaultId: 0,
+    title: 'Open Link',
+    message: 'How would you like to open this link?',
+    detail: url
+  }).then(({ response }) => {
+    if (response === 0) {
+      shell.openExternal(url);
+    } else if (response === 1) {
+      createWindow({ url }, 0, true);
+    }
+  });
+}
 
 module.exports = {
   createWindow,
